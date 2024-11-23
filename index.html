@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Solar System</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      button {
+        position: fixed;
+        top: 20px;
+        margin: 5px;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.5);
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      #orbit-sun {
+        left: 20px;
+      }
+      #orbit-earth {
+        left: 120px;
+      }
+      #orbit-moon {
+        left: 220px;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.161/build/three.module.js",
+          "jsm/": "https://cdn.jsdelivr.net/npm/three@0.161/examples/jsm/",
+          "tween": "https://cdn.jsdelivr.net/npm/three@0.161/examples/jsm/libs/tween.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <!-- Boutons pour changer l'objectif de la caméra -->
+    <button id="orbit-sun">Orbit Sun</button>
+    <button id="orbit-earth">Orbit Earth</button>
+    <button id="orbit-moon">Orbit Moon</button>
+
+    <!-- Importation du fichier JavaScript -->
+    <script type="module" src="index.js"></script>
+  </body>
+</html>
