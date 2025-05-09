@@ -24,12 +24,13 @@ export const CAMERA_SETTINGS = {
 export const LIGHTING_SETTINGS = {
   ambient: {
     color: 0xfff4e6,
-    intensity: 1,
+    intensity: 0.2,
   },
   sun: {
     color: 0xfff4e6,
-    intensity: 20,
-    distance: 0,
+    intensity: 10,
+    distance: 20000,
+    decay: 2,
   },
 };
 

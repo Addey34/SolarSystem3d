@@ -7,7 +7,7 @@ body {
 
 .controls {
   position: fixed;
-  top: 20px;
+  padding: 1rem;
   left: 0;
   right: 0;
   display: flex;
@@ -15,7 +15,6 @@ body {
   gap: 1rem;
   flex-wrap: wrap;
   z-index: 100;
-  padding: 10px;
 }
 
 .controls button.active {
@@ -78,9 +77,9 @@ body {
 #fullscreen-btn {
   position: fixed;
   font-size: 3rem;
-  bottom: 20px;
-  right: 20px;
-  padding: 10px;
+  bottom: 1rem;
+  right: 1rem;
+  padding: 0.5rem;
   background: rgba(0, 0, 0, 0.5);
   border: none;
   color: white;
@@ -95,4 +94,24 @@ body {
 #fullscreen-btn:hover {
   transform: scale(1.1);
   transition: all 0.3s ease;
+}
+
+@media (max-width: 640px) {
+  .controls {
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .button {
+    flex: 1 1 calc(20% - 1rem);
+    font-size: 1rem;
+    padding: 1rem 0.5rem 1rem 0.5rem;
+    min-width: auto;
+  }
+
+  #fullscreen-btn {
+    font-size: 2rem;
+  }
 }

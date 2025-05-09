@@ -7,10 +7,8 @@ export class CelestialObjectClassLoader {
     this.objectClasses = new Map();
   }
 
-  // Charge les classes des objets célestes
   async loadObjectClasses() {
     const bodies = Object.keys(this.objectConfig.bodies);
-
     await Promise.all(
       bodies.map(async (name) => {
         try {
@@ -18,14 +16,12 @@ export class CelestialObjectClassLoader {
           const module = await import(`./bodies/${className}.js`);
           this.objectClasses.set(name, module.default || module);
         } catch {
-          // Fallback à la classe de base
           this.objectClasses.set(name, CelestialObject);
         }
       })
     );
   }
 
-  // Récupère la classe d'un objet céleste
   getObjectClass(name) {
     return this.objectClasses.get(name) || CelestialObject;
   }

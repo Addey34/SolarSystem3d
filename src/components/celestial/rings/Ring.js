@@ -10,7 +10,7 @@ export class Ring {
       64
     );
 
-    this.ringMaterial = new THREE.MeshStandardMaterial({
+    this.ringMaterial = new THREE.MeshPhongMaterial({
       map: textures[`${config.textures}_${config.textureResolutions[0]}`],
       side: THREE.DoubleSide,
       transparent: true,

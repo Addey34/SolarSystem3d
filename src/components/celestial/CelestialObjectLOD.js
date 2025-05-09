@@ -15,9 +15,7 @@ export class CelestialObjectLOD {
   init() {
     const config = this.getObjectConfig();
     if (!config) return;
-
     const lodLevels = CELESTIAL_CONFIG.common.lodLevels;
-
     Object.entries(lodLevels).forEach(([level, { segments, distance }]) => {
       const textures = this.getTexturesForDistance(distance);
       this.addLODLevel(segments, distance, textures);
@@ -28,9 +26,7 @@ export class CelestialObjectLOD {
     const geometry = this.createSphereGeometry(segments);
     const material = this.createMainMaterial(textures);
     const mesh = new THREE.Mesh(geometry, material);
-
     this.lod.addLevel(mesh, distance);
-
     if (textures.clouds) {
       this.addCloudLayer(mesh, segments, textures.clouds);
     }
@@ -77,15 +73,12 @@ export class CelestialObjectLOD {
 
   update(cameraPosition, isInShadow = false) {
     if (!cameraPosition || !this.lod.parent) return;
-
     if (this.isInShadow !== isInShadow) {
       this.isInShadow = isInShadow;
       this.updateMaterials();
     }
-
     this.lod.updateMatrixWorld(true);
     this.lod.update(cameraPosition);
-
     this.cloudMeshes.forEach((cloud) => {
       cloud.rotation.y += this.settings.rotationSpeed * 0.5 * delta;
     });
@@ -94,7 +87,6 @@ export class CelestialObjectLOD {
   updateMaterials() {
     this.lod.levels.forEach((level) => {
       const material = level.object.material;
-
       if (material.emissiveMap) {
         material.emissiveIntensity = this.isInShadow ? 0.5 : 0;
         material.needsUpdate = true;
@@ -106,7 +98,6 @@ export class CelestialObjectLOD {
     this.lod.levels.forEach((level) => {
       level.object.geometry.dispose();
       level.object.material.dispose();
-
       level.object.children.forEach((child) => {
         if (child.userData.isCloud) {
           child.geometry.dispose();
@@ -114,7 +105,6 @@ export class CelestialObjectLOD {
         }
       });
     });
-
     this.cloudMeshes = [];
   }
 
@@ -135,17 +125,12 @@ export class CelestialObjectLOD {
   getTexturesForDistance(distance) {
     const config = this.getObjectConfig();
     const quality = this.getQualityForDistance(distance);
-
     const textures = {};
-
-    // Charge toutes les textures disponibles pour cette qualité
     if (config.textures) {
       Object.entries(config.textures).forEach(([type, basePath]) => {
-        // Vérifie si cette texture existe dans cette résolution
         if (config.textureResolutions?.[type]?.includes(quality)) {
           textures[type] = this.getTexture(type, quality);
         } else {
-          // Fallback à la résolution la plus proche disponible
           const availableResolutions = config.textureResolutions?.[type] || [
             '1k',
           ];
@@ -161,26 +146,20 @@ export class CelestialObjectLOD {
     return textures;
   }
 
-  // Nouvelle méthode helper pour trouver la résolution la plus proche
   findClosestResolution(availableResolutions, targetQuality) {
     const qualityOrder = ['8k', '4k', '2k', '1k'];
     const targetIndex = qualityOrder.indexOf(targetQuality);
-
-    // Cherche d'abord des résolutions supérieures
     for (let i = targetIndex - 1; i >= 0; i--) {
       if (availableResolutions.includes(qualityOrder[i])) {
         return qualityOrder[i];
       }
     }
-
-    // Puis des résolutions inférieures
     for (let i = targetIndex + 1; i < qualityOrder.length; i++) {
       if (availableResolutions.includes(qualityOrder[i])) {
         return qualityOrder[i];
       }
     }
-
-    return '1k'; // Fallback ultime
+    return '1k';
   }
 
   getTexture(type, quality) {
@@ -192,24 +171,16 @@ export class CelestialObjectLOD {
     const { high, medium, low } = CELESTIAL_CONFIG.common.lodLevels;
     const normalizedDistance = distance / this.settings.radius;
     const config = this.getObjectConfig();
-
-    // Vérifie toutes les résolutions disponibles pour toutes les textures
-    const allResolutions = new Set(['1k']); // Toujours disponible
-
-    // Récupère toutes les résolutions disponibles pour toutes les textures
+    const allResolutions = new Set(['1k']);
     if (config.textureResolutions) {
       Object.values(config.textureResolutions).forEach((resolutions) => {
         resolutions.forEach((res) => allResolutions.add(res));
       });
     }
-
-    // Convertir en tableau trié par qualité (du plus haut au plus bas)
     const availableResolutions = Array.from(allResolutions).sort((a, b) => {
       const sizes = { '8k': 4, '4k': 3, '2k': 2, '1k': 1 };
       return sizes[b] - sizes[a];
     });
-
-    // Détermine la meilleure qualité disponible en fonction de la distance
     if (
       normalizedDistance <= high.distance &&
       availableResolutions.includes('8k')

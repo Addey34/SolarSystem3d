@@ -30,7 +30,6 @@ export class CameraSystem {
 
   initializeControls() {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    // Configuration des contrôles
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.25;
     this.controls.screenSpacePanning = false;
@@ -48,7 +47,6 @@ export class CameraSystem {
     const targetPosition = new THREE.Vector3();
     this.currentTarget.group.getWorldPosition(targetPosition);
     this.targetObject.position.copy(targetPosition);
-    // Mise à jour des contrôles
     if (this.controls) {
       this.controls.target.copy(this.targetObject.position);
       this.controls.update();
@@ -57,7 +55,6 @@ export class CameraSystem {
 
   setTarget(bodyName) {
     const body = this.celestialBodies[bodyName]?.group;
-    // Calcul de la distance initiale
     let distance = this.getDefaultDistance(bodyName);
     if (body.userData?.radius) {
       const minDistance = body.userData.radius * this.minDistanceMultiplier;

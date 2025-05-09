@@ -28,7 +28,6 @@ export class CelestialObject {
   createRings() {
     this.ring = [];
     if (!this.config.ring) return;
-
     this.ring = Object.values(this.config.ring).map((ringConfig) => {
       const ring = new Ring(this.textures, ringConfig, this.config.radius);
       this.group.add(ring.mesh);
