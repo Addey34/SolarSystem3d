@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 
 export function createStarfield(texture, options = {}) {
-  // Validation robuste de la texture
   if (!texture || !texture.isTexture) {
     console.error("Texture invalide - création d'une texture de secours");
     texture = new THREE.TextureLoader().load(
-      '/src/assets/stars/starsmilky_8k.jpg'
+      '/assets/stars/starsmilky_8k.jpg'
     );
     texture.colorSpace = THREE.SRGBColorSpace;
   }
@@ -26,7 +25,7 @@ export function createStarfield(texture, options = {}) {
   // Création du skybox avec propriétés optimisées
   const skybox = new THREE.Mesh(geometry, material);
   skybox.name = 'starfield_skybox';
-  skybox.renderOrder = -Infinity; // Garantit qu'il sera rendu en premier
+  skybox.renderOrder = -Infinity;
 
   // Animation fluide
   skybox.userData.update = (delta) => {

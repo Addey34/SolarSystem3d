@@ -46,6 +46,8 @@ export class TextureSystem {
     this.textures.clear();
     this.cache.clear();
   }
+
+  // Charge une texture
   async loadTexture({ name, path }) {
     try {
       if (this.cache.has(path)) {
