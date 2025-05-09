@@ -3,7 +3,6 @@ import * as THREE from 'three';
 const CONCURRENT_LOAD_LIMIT = 6;
 const MAX_ANISOTROPY_LIMIT = 16;
 
-// Gestion des textures
 export class TextureSystem {
   constructor(config) {
     this.config = config;
@@ -16,7 +15,6 @@ export class TextureSystem {
     this.maxAnisotropy = this.getMaxAnisotropy();
   }
 
-  // Charge les textures
   async load(progressCallback = () => {}) {
     this.loadingQueue = this.generateTextureList();
     this.totalToLoad = this.loadingQueue.length;
@@ -35,19 +33,10 @@ export class TextureSystem {
       const progress = this.getLoadProgress();
       progressCallback(progress);
     }
+    console.log(this.getTexturesObject());
     return this.getTexturesObject();
   }
 
-  // Nettoie les ressources
-  dispose() {
-    for (const texture of this.textures.values()) {
-      texture.dispose?.();
-    }
-    this.textures.clear();
-    this.cache.clear();
-  }
-
-  // Charge une texture
   async loadTexture({ name, path }) {
     try {
       if (this.cache.has(path)) {
@@ -67,7 +56,6 @@ export class TextureSystem {
     }
   }
 
-  // Génère la liste des textures à charger
   generateTextureList() {
     const textures = [];
     const { bodies } = this.config;
@@ -86,7 +74,6 @@ export class TextureSystem {
           }
         }
       }
-
       if (bodyConfig.satellites) {
         for (const [satName, satConfig] of Object.entries(
           bodyConfig.satellites
@@ -108,7 +95,6 @@ export class TextureSystem {
           }
         }
       }
-
       if (bodyConfig.ring) {
         for (const [ringName, ringConfig] of Object.entries(bodyConfig.ring)) {
           if (ringConfig.textures && ringConfig.textureResolutions) {
@@ -161,5 +147,13 @@ export class TextureSystem {
       result[key] = value;
     }
     return result;
+  }
+
+  dispose() {
+    for (const texture of this.textures.values()) {
+      texture.dispose?.();
+    }
+    this.textures.clear();
+    this.cache.clear();
   }
 }

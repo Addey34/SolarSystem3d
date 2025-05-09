@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { CAMERA_SETTINGS, RENDER_SETTINGS } from '../../config/settings.js';
 import { createStarfield } from '../celestial/bodies/Starfield.js';
 
-// Classe pour gérer la scène
 export class SceneSystem {
   constructor(config) {
     this.config = config;
@@ -11,9 +10,9 @@ export class SceneSystem {
     this.disposeFunctions = [];
     this.targetObject = new THREE.Object3D();
     this.targetObject.name = 'mainTarget';
+    this.scene.add(this.targetObject);
   }
 
-  // Initialise la scène
   init(textures) {
     this.setupCamera();
     this.setupRenderer();
@@ -22,7 +21,6 @@ export class SceneSystem {
     return this;
   }
 
-  // Configure la caméra
   setupCamera() {
     this.camera = new THREE.PerspectiveCamera(
       CAMERA_SETTINGS.fov,
@@ -31,11 +29,9 @@ export class SceneSystem {
       CAMERA_SETTINGS.far
     );
     this.camera.position.copy(CAMERA_SETTINGS.initialPosition);
-    this.scene.add(this.targetObject);
     this.camera.lookAt(this.targetObject.position);
   }
 
-  // Configure le moteur de rendu
   setupRenderer() {
     this.renderer = new THREE.WebGLRenderer({
       antialias: RENDER_SETTINGS.antialias,
@@ -45,7 +41,6 @@ export class SceneSystem {
     document.body.appendChild(this.renderer.domElement);
   }
 
-  // Configure le rendu
   applyRendererSettings() {
     const pixelRatio = Math.min(
       window.devicePixelRatio,
@@ -67,6 +62,18 @@ export class SceneSystem {
     this.scene.background = starTexture;
   }
 
+  setupEventListeners() {
+    const onResize = () => {
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener('resize', onResize, { passive: true });
+    this.disposeFunctions.push(() => {
+      window.removeEventListener('resize', onResize);
+    });
+  }
+
   setupCelestialBodies(celestialBodies) {
     const addBodyWithOrbit = (name, config, parentGroup) => {
       const body = celestialBodies[name];
@@ -82,7 +89,6 @@ export class SceneSystem {
       }
       this.orbitGroups[name] = orbitGroup;
       orbitGroup.updateMatrixWorld(true);
-      console.log(`[SceneSystem] Updated matrix world for ${name} orbit group`);
       if (config.orbitalRadius && name !== 'moon') {
         const orbitVisual = this.createOrbitVisual(config.orbitalRadius);
         orbitGroup.add(orbitVisual);
@@ -94,34 +100,13 @@ export class SceneSystem {
       }
     };
     addBodyWithOrbit('sun', this.config.bodies.sun, null);
-    const otherBodies = Object.entries(this.config.bodies).filter(
-      ([name]) => name !== 'sun'
-    );
-    otherBodies.forEach(([name, config]) => {
-      if (!celestialBodies.sun?.group) {
-        return;
-      }
-      addBodyWithOrbit(name, config, celestialBodies.sun.group);
-    });
-    console.log('[SceneSystem] Final scene hierarchy:', this.scene);
-    console.log('[SceneSystem] Orbit groups:', this.orbitGroups);
-  }
-
-  updateCameraTarget(position) {
-    this.targetObject.position.copy(position);
-    this.targetObject.updateMatrixWorld();
-    this.camera.lookAt(this.targetObject.position);
-  }
-
-  getWorldPosition(bodyName) {
-    const body = this.celestialBodies[bodyName]?.group;
-    if (!body) {
-      return null;
-    }
-    body.updateMatrixWorld(true);
-    const position = new THREE.Vector3();
-    body.getWorldPosition(position);
-    return position;
+    Object.entries(this.config.bodies)
+      .filter(([name]) => name !== 'sun')
+      .forEach(([name, config]) => {
+        if (celestialBodies.sun?.group) {
+          addBodyWithOrbit(name, config, celestialBodies.sun.group);
+        }
+      });
   }
 
   createOrbitVisual(radius, color = 0x555555) {
@@ -147,16 +132,20 @@ export class SceneSystem {
     return orbitLine;
   }
 
-  setupEventListeners() {
-    const onResize = () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-    };
-    window.addEventListener('resize', onResize, { passive: true });
-    this.disposeFunctions.push(() => {
-      window.removeEventListener('resize', onResize);
-    });
+  updateCameraTarget(position) {
+    this.targetObject.position.copy(position);
+    this.camera.lookAt(this.targetObject.position);
+  }
+
+  getWorldPosition(bodyName) {
+    const body = this.celestialBodies[bodyName]?.group;
+    if (!body) {
+      return null;
+    }
+    body.updateMatrixWorld(true);
+    const position = new THREE.Vector3();
+    body.getWorldPosition(position);
+    return position;
   }
 
   dispose() {

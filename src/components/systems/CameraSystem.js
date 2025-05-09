@@ -2,11 +2,10 @@ import TWEEN from '@tweenjs/tween.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// Classe pour gérer la caméra
 export class CameraSystem {
-  constructor() {
+  constructor(sceneSystem) {
+    this.sceneSystem = sceneSystem;
     this.controls = null;
-    this.targetObject = new THREE.Object3D();
     this.isAnimating = false;
     this.animationTween = null;
     this.defaultDistance = 40;
@@ -17,14 +16,12 @@ export class CameraSystem {
     this.userControlledZoom = false;
   }
 
-  init(camera, renderer, celestialBodies, sceneSystem) {
+  init(camera, renderer, celestialBodies) {
     this.camera = camera;
     this.renderer = renderer;
     this.celestialBodies = celestialBodies;
-    this.sceneSystem = sceneSystem;
-    this.targetObject = sceneSystem?.targetObject || new THREE.Object3D();
-    this.initializeControls();
     this.camera.position.set(0, 50, 200);
+    this.initializeControls();
     this.setTarget('sun');
   }
 
@@ -40,35 +37,37 @@ export class CameraSystem {
     this.controls.enableRotate = true;
     this.controls.minDistance = 5;
     this.controls.maxDistance = 100;
-    this.controls.target.copy(this.targetObject.position);
+    this.controls.target.copy(this.sceneSystem.targetObject.position);
   }
 
   update(delta) {
+    if (!this.currentTarget) return;
     const targetPosition = new THREE.Vector3();
     this.currentTarget.group.getWorldPosition(targetPosition);
-    this.targetObject.position.copy(targetPosition);
+    this.sceneSystem.updateCameraTarget(targetPosition);
     if (this.controls) {
-      this.controls.target.copy(this.targetObject.position);
+      this.controls.target.copy(this.sceneSystem.targetObject.position);
       this.controls.update();
     }
   }
 
   setTarget(bodyName) {
     const body = this.celestialBodies[bodyName]?.group;
+    if (!body) return;
     let distance = this.getDefaultDistance(bodyName);
     if (body.userData?.radius) {
       const minDistance = body.userData.radius * this.minDistanceMultiplier;
       distance = Math.max(distance, minDistance);
     }
-
-    // Sauvegarde la distance cible
     this.targetDistance = distance;
-    // Position et direction
     const targetPosition = new THREE.Vector3();
     body.getWorldPosition(targetPosition);
     const currentDirection = this.userControlledZoom
       ? new THREE.Vector3()
-          .subVectors(this.camera.position, this.targetObject.position)
+          .subVectors(
+            this.camera.position,
+            this.sceneSystem.targetObject.position
+          )
           .normalize()
       : new THREE.Vector3(0.2, 0.3, 1).normalize();
     this.currentTarget = {
@@ -87,17 +86,13 @@ export class CameraSystem {
     if (!this.currentTarget) {
       return;
     }
-    // Force la mise à jour des matrices
     this.currentTarget.group.updateMatrixWorld(true);
-    // Récupère la position actuelle
     const targetPosition = new THREE.Vector3();
     this.currentTarget.group.getWorldPosition(targetPosition);
     this.currentTarget.position.copy(targetPosition);
-    // Calcule la position de la caméra
     const cameraDirection = new THREE.Vector3()
       .subVectors(this.camera.position, targetPosition)
       .normalize();
-    // Si la direction est nulle (première fois), utilise une direction par défaut
     if (cameraDirection.length() < 0.1) {
       cameraDirection.set(0.2, 0.3, 1).normalize();
     }
@@ -112,9 +107,8 @@ export class CameraSystem {
       this.animationTween.stop();
     }
     this.isAnimating = true;
-    // Utilisation d'une approche plus fluide avec interpolation
     const startPos = this.camera.position.clone();
-    const startTarget = this.targetObject.position.clone();
+    const startTarget = this.sceneSystem.targetObject.position.clone();
     const duration = 1000;
     let startTime = null;
     const animate = (timestamp) => {
@@ -125,10 +119,13 @@ export class CameraSystem {
           ? 2 * progress * progress
           : 1 - Math.pow(-2 * progress + 2, 2) / 2;
       this.camera.position.lerpVectors(startPos, cameraPosition, t);
-      this.targetObject.position.lerpVectors(startTarget, targetPosition, t);
-      // Mise à jour des contrôles
+      this.sceneSystem.targetObject.position.lerpVectors(
+        startTarget,
+        targetPosition,
+        t
+      );
       if (this.controls) {
-        this.controls.target.copy(this.targetObject.position);
+        this.controls.target.copy(this.sceneSystem.targetObject.position);
       }
       if (progress < 1) {
         requestAnimationFrame(animate);

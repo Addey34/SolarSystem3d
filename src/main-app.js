@@ -27,8 +27,7 @@ async function setupPlanetControls(cameraManager) {
       button.classList.add('active');
       if (cameraManager) {
         cameraManager.setTarget(planetId);
-        setTimeout(() => {
-        }, 100);
+        setTimeout(() => {}, 100);
       } else {
         console.error('Camera manager is not available');
       }

@@ -13,28 +13,16 @@ export class AnimationSystem {
     console.groupEnd();
   }
 
-  init({
-    scene,
-    camera,
-    renderer,
-    celestialBodies,
-    orbitGroups,
-    lightingSystem,
-    sceneSystem,
-  }) {
-    this.scene = scene;
-    this.camera = camera;
-    this.renderer = renderer;
-    this.celestialBodies = celestialBodies;
-    this.orbitGroups = orbitGroups;
-    this.lightingSystem = lightingSystem;
+  init(config) {
+    this.scene = config.scene;
+    this.camera = config.camera;
+    this.renderer = config.renderer;
+    this.celestialBodies = config.celestialBodies;
+    this.orbitGroups = config.orbitGroups;
+    this.lightingSystem = config.lightingSystem;
+    this.sceneSystem = config.sceneSystem;
+    this.cameraSystem = config.cameraSystem;
     this.fpsCounter.init();
-    this.cameraSystem.init(
-      this.camera,
-      this.renderer,
-      this.celestialBodies,
-      sceneSystem
-    );
   }
 
   run() {
@@ -60,7 +48,6 @@ export class AnimationSystem {
         console.warn(`Orbit group "${name}" is null`);
       }
     });
-    // Mise à jour des corps célestes
     Object.entries(this.celestialBodies).forEach(([name, body]) => {
       if (body?.group) {
         body.group.updateMatrixWorld(true);
@@ -68,7 +55,6 @@ export class AnimationSystem {
         console.warn(`Celestial body "${name}" has no group`);
       }
     });
-    // Mise à jour des contrôles
     if (this.cameraSystem.controls && !this.cameraSystem.isAnimating) {
       this.cameraSystem.controls.update();
     }
