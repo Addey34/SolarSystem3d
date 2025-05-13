@@ -11,8 +11,8 @@ export const DEFAULT_TEXTURE_SETTINGS = {
 };
 
 export const LOD_LEVELS = {
-  high: { segments: 128, distance: 5, quality: '8k' },
-  medium: { segments: 64, distance: 10, quality: '4k' },
-  low: { segments: 32, distance: 20, quality: '2k' },
-  basic: { segments: 16, distance: 40, quality: '1k' },
+  ultra: { segments: 256, distance: 20, quality: '8k' },
+  high: { segments: 128, distance: 40, quality: '4k' },
+  medium: { segments: 64, distance: 60, quality: '2k' },
+  low: { segments: 32, distance: 80, quality: '1k' },
 };

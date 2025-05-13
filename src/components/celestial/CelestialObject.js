@@ -1,46 +1,43 @@
 import * as THREE from 'three';
 import { CelestialObjectLOD } from './CelestialObjectLOD.js';
-import { Ring } from './rings/Ring.js';
 
 export class CelestialObject {
   constructor(textures, config, name) {
     this.name = name;
     this.config = config;
     this.textures = textures;
-    this.group = new THREE.Group();
-    this.group.name = name;
-    this.init();
+    this.group = this.createMainGroup();
+    this.initSpecificFeatures();
   }
 
-  init() {
-    this.createVisuals();
-    this.createRings();
-  }
-
-  createVisuals() {
+  createMainGroup() {
+    const group = new THREE.Group();
+    group.name = this.name;
+    group.userData = {
+      config: this.config,
+      type: 'celestial-body',
+      radius: this.config.radius,
+    };
     this.lodSystem = new CelestialObjectLOD(this.name, this.textures, {
       radius: this.config.radius,
       rotationSpeed: this.config.rotationSpeed,
     });
-    this.group.add(this.lodSystem.lod);
+    group.add(this.lodSystem.lod);
+    return group;
   }
 
-  createRings() {
-    this.ring = [];
-    if (!this.config.ring) return;
-    this.ring = Object.values(this.config.ring).map((ringConfig) => {
-      const ring = new Ring(this.textures, ringConfig, this.config.radius);
-      this.group.add(ring.mesh);
-      return ring;
-    });
+  initSpecificFeatures() {}
+
+  update(delta) {
+    if (!this.group.parent) return;
+    const cameraPosition = this.group.getWorldPosition(new THREE.Vector3());
+    this.lodSystem?.update(delta, cameraPosition);
+    this.updateSpecificFeatures(delta);
   }
+
+  updateSpecificFeatures(delta) {}
 
   dispose() {
     this.lodSystem?.dispose();
-    this.ring.forEach((ring) => {
-      ring.dispose();
-      this.group.remove(ring.mesh);
-    });
-    this.group.remove(...this.group.children);
   }
 }

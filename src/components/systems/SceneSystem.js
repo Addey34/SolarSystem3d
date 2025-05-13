@@ -89,10 +89,11 @@ export class SceneSystem {
       }
       this.orbitGroups[name] = orbitGroup;
       orbitGroup.updateMatrixWorld(true);
-      if (config.orbitalRadius && name !== 'moon') {
-        const orbitVisual = this.createOrbitVisual(config.orbitalRadius);
-        orbitGroup.add(orbitVisual);
-      }
+      const orbitVisual = this.createOrbitVisual(
+        config.orbitalRadius,
+        config.orbitalColor
+      );
+      orbitGroup.add(orbitVisual);
       if (config.satellites) {
         Object.entries(config.satellites).forEach(([satName, satConfig]) => {
           addBodyWithOrbit(satName, satConfig, body.group);
@@ -101,24 +102,24 @@ export class SceneSystem {
     };
     addBodyWithOrbit('sun', this.config.bodies.sun, null);
     Object.entries(this.config.bodies)
-      .filter(([name]) => name !== 'sun')
-      .forEach(([name, config]) => {
+      .filter(([bodyName]) => bodyName !== 'sun')
+      .forEach(([bodyName, config]) => {
         if (celestialBodies.sun?.group) {
-          addBodyWithOrbit(name, config, celestialBodies.sun.group);
+          addBodyWithOrbit(bodyName, config, celestialBodies.sun.group);
         }
       });
   }
 
-  createOrbitVisual(radius, color = 0x555555) {
+  createOrbitVisual(radius, color) {
     const geometry = new THREE.BufferGeometry();
     const material = new THREE.LineBasicMaterial({
       color,
       transparent: true,
       opacity: 0.5,
-      linewidth: 2,
+      linewidth: 1,
     });
     const vertices = [];
-    const segments = 64;
+    const segments = 512;
     for (let i = 0; i <= segments; i++) {
       const theta = (i / segments) * Math.PI * 2;
       vertices.push(Math.cos(theta) * radius, 0, Math.sin(theta) * radius);
@@ -138,10 +139,7 @@ export class SceneSystem {
   }
 
   getWorldPosition(bodyName) {
-    const body = this.celestialBodies[bodyName]?.group;
-    if (!body) {
-      return null;
-    }
+    const body = this.celestialBody[bodyName]?.group;
     body.updateMatrixWorld(true);
     const position = new THREE.Vector3();
     body.getWorldPosition(position);

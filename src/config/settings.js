@@ -17,14 +17,14 @@ export const RENDER_SETTINGS = {
 export const CAMERA_SETTINGS = {
   fov: 75,
   near: 0.1,
-  far: 3000,
-  initialPosition: new THREE.Vector3(0, 50, 500),
+  far: 10000,
+  initialPosition: new THREE.Vector3(0, 50, 0),
 };
 
 export const LIGHTING_SETTINGS = {
   ambient: {
     color: 0xfff4e6,
-    intensity: 0.2,
+    intensity: 0.5,
   },
   sun: {
     color: 0xfff4e6,
@@ -35,10 +35,14 @@ export const LIGHTING_SETTINGS = {
 };
 
 export const CELESTIAL_CONFIG = {
-  common: {
-    textureBasePath: '/assets/textures/',
-    lodLevels: LOD_LEVELS,
-    defaultTextureSettings: DEFAULT_TEXTURE_SETTINGS,
+  defaultTextureSettings: {
+    wrapS: THREE.RepeatWrapping,
+    wrapT: THREE.RepeatWrapping,
+    anisotropy: 8,
+    colorSpace: THREE.SRGBColorSpace,
+    minFilter: THREE.LinearMipMapLinearFilter,
+    magFilter: THREE.LinearFilter,
+    generateMipmaps: true,
   },
   bodies: {
     sun: {
@@ -52,6 +56,7 @@ export const CELESTIAL_CONFIG = {
       radius: 0.383,
       rotationSpeed: 0.003,
       orbitalRadius: 58,
+      orbitalColor: 0xaaaaaa,
       textureResolutions: {
         surface: ['8k', '4k', '2k', '1k'],
         bump: ['1k'],
@@ -65,6 +70,7 @@ export const CELESTIAL_CONFIG = {
       radius: 0.949,
       rotationSpeed: -0.0001,
       orbitalRadius: 108,
+      orbitalColor: 0xffa500,
       textureResolutions: {
         surface: ['8k', '4k', '2k', '1k'],
         bump: ['1k'],
@@ -80,6 +86,7 @@ export const CELESTIAL_CONFIG = {
       radius: 1.0,
       rotationSpeed: 0.0008,
       orbitalRadius: 150,
+      orbitalColor: 0x00bfff,
       textureResolutions: {
         surface: ['8k', '4k', '2k', '1k'],
         normalMap: ['8k', '4k', '2k', '1k'],
@@ -100,6 +107,7 @@ export const CELESTIAL_CONFIG = {
           radius: 0.273,
           rotationSpeed: 0.0002,
           orbitalRadius: 3,
+          orbitalColor: 0x999999,
           textureResolutions: {
             surface: ['8k', '4k', '2k', '1k'],
             bump: ['4k', '2k', '1k'],
@@ -115,6 +123,7 @@ export const CELESTIAL_CONFIG = {
       radius: 0.532,
       rotationSpeed: 0.001,
       orbitalRadius: 228,
+      orbitalColor: 0xff4500,
       textureResolutions: {
         surface: ['8k', '4k', '2k', '1k'],
         normalMap: ['1k'],
@@ -128,6 +137,7 @@ export const CELESTIAL_CONFIG = {
       radius: 11.21,
       rotationSpeed: 0.003,
       orbitalRadius: 778,
+      orbitalColor: 0xffc04d,
       textureResolutions: { surface: ['4k', '2k', '1k'] },
       textures: { surface: 'jupiter/jupiterSurface' },
     },
@@ -135,15 +145,14 @@ export const CELESTIAL_CONFIG = {
       radius: 9.45,
       rotationSpeed: 0.0015,
       orbitalRadius: 1430,
+      orbitalColor: 0xf5deb3,
       ring: {
-        saturnRing: {
-          bodyName: 'saturnRing',
-          innerRadius: 1.5,
-          outerRadius: 2,
-          rotationSpeed: 0.00005,
-          textureResolutions: ['8k', '4k', '2k', '1k'],
-          textures: 'saturn/saturnRing',
-        },
+        bodyName: 'saturn-ring',
+        innerRadius: 1.5,
+        outerRadius: 2,
+        rotationSpeed: 0.00005,
+        textureResolutions: ['8k', '4k', '2k', '1k'],
+        textures: 'saturn/saturnRing',
       },
       textureResolutions: { surface: ['4k', '2k', '1k'] },
       textures: { surface: 'saturn/saturnSurface' },
@@ -152,6 +161,7 @@ export const CELESTIAL_CONFIG = {
       radius: 4.01,
       rotationSpeed: 0.001,
       orbitalRadius: 2870,
+      orbitalColor: 0x7fffd4,
       textureResolutions: { surface: ['2k', '1k'] },
       textures: { surface: 'uranus/uranusSurface' },
     },
@@ -159,6 +169,7 @@ export const CELESTIAL_CONFIG = {
       radius: 3.88,
       rotationSpeed: 0.0012,
       orbitalRadius: 4500,
+      orbitalColor: 0x4169e1,
       textureResolutions: { surface: ['2k', '1k'] },
       textures: { surface: 'neptune/neptuneSurface' },
     },

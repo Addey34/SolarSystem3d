@@ -9,7 +9,6 @@ export class TextureSystem {
     this.textureLoader = new THREE.TextureLoader();
     this.textures = new Map();
     this.cache = new Map();
-    this.loadingQueue = [];
     this.loadedCount = 0;
     this.totalToLoad = 0;
     this.maxAnisotropy = this.getMaxAnisotropy();
@@ -18,20 +17,10 @@ export class TextureSystem {
   async load(progressCallback = () => {}) {
     this.loadingQueue = this.generateTextureList();
     this.totalToLoad = this.loadingQueue.length;
-    const batchPromises = [];
-    for (const textureDef of this.loadingQueue) {
-      batchPromises.push(this.loadTexture(textureDef));
-      if (batchPromises.length >= CONCURRENT_LOAD_LIMIT) {
-        await Promise.all(batchPromises);
-        batchPromises.length = 0;
-        const progress = this.getLoadProgress();
-        progressCallback(progress);
-      }
-    }
-    if (batchPromises.length > 0) {
-      await Promise.all(batchPromises);
-      const progress = this.getLoadProgress();
-      progressCallback(progress);
+    for (let i = 0; i < this.loadingQueue.length; i += CONCURRENT_LOAD_LIMIT) {
+      const batch = this.loadingQueue.slice(i, i + CONCURRENT_LOAD_LIMIT);
+      await Promise.all(batch.map((def) => this.loadTexture(def)));
+      progressCallback(Math.round((i / this.loadingQueue.length) * 100));
     }
     console.log(this.getTexturesObject());
     return this.getTexturesObject();
@@ -40,83 +29,63 @@ export class TextureSystem {
   async loadTexture({ name, path }) {
     try {
       if (this.cache.has(path)) {
-        const cachedTexture = this.cache.get(path);
-        this.textures.set(name, cachedTexture);
+        this.textures.set(name, this.cache.get(path));
         this.loadedCount++;
         return;
       }
       const texture = await this.textureLoader.loadAsync(
-        `${this.config.common.textureBasePath}${path}.jpg`
+        `/assets/textures/${path}.jpg`
       );
+      Object.assign(texture, this.config.defaultTextureSettings);
+      texture.anisotropy = this.maxAnisotropy;
+      texture.needsUpdate = true;
       this.cache.set(path, texture);
       this.textures.set(name, texture);
       this.loadedCount++;
     } catch (error) {
-      console.error(`Texture load error [${name}]: ${error.message}`);
+      console.error(`Texture load error [${name}]:`, error);
     }
   }
 
   generateTextureList() {
     const textures = [];
     const { bodies } = this.config;
-    const processBody = (bodyName, bodyConfig) => {
-      if (bodyConfig.textures) {
-        for (const [type, basePath] of Object.entries(bodyConfig.textures)) {
-          const resolutions = bodyConfig.textureResolutions?.[type];
-          for (const resolution of resolutions) {
-            const textureDef = {
-              name: `${bodyName}_${type}_${resolution}`,
-              path: `${basePath}_${resolution}`,
-              type,
-              resolution,
-            };
-            textures.push(textureDef);
-          }
-        }
-      }
-      if (bodyConfig.satellites) {
-        for (const [satName, satConfig] of Object.entries(
-          bodyConfig.satellites
-        )) {
-          if (satConfig.textures) {
-            for (const [type, basePath] of Object.entries(satConfig.textures)) {
-              const resolutions = satConfig.textureResolutions?.[type] ||
-                defaultResolutions[type] || ['1k'];
-              for (const resolution of resolutions) {
-                const textureDef = {
-                  name: `${satName}_${type}_${resolution}`,
-                  path: `${basePath}_${resolution}`,
-                  type: type,
-                  resolution,
-                };
-                textures.push(textureDef);
-              }
-            }
-          }
-        }
-      }
-      if (bodyConfig.ring) {
-        for (const [ringName, ringConfig] of Object.entries(bodyConfig.ring)) {
-          if (ringConfig.textures && ringConfig.textureResolutions) {
-            for (const resolution of ringConfig.textureResolutions) {
-              const textureDef = {
-                name: `${ringName}_${resolution}`,
-                path: `${ringConfig.textures}_${resolution}`,
-                type: 'ring',
-                resolution,
-              };
-              textures.push(textureDef);
-            }
-          }
-        }
-      }
+    const processTextures = (prefix, config) => {
+      if (!config.textures) return;
+      Object.entries(config.textures).forEach(([type, basePath]) => {
+        const resolutions = config.textureResolutions?.[type];
+        resolutions.forEach((resolution) => {
+          textures.push({
+            name: `${prefix}_${type}_${resolution}`,
+            path: `${basePath}_${resolution}`,
+            type,
+            resolution,
+          });
+        });
+      });
     };
-    for (const [bodyName, bodyConfig] of Object.entries(bodies)) {
-      processBody(bodyName, bodyConfig);
-    }
+    Object.entries(bodies).forEach(([name, config]) => {
+      processTextures(name, config);
+      if (config.satellites) {
+        Object.entries(config.satellites).forEach(([satName, satConfig]) => {
+          processTextures(satName, satConfig);
+        });
+      }
+      if (config.ring) {
+        const ringConfig = config.ring;
+        ringConfig.textureResolutions.forEach((resolution) => {
+          textures.push({
+            name: `${ringConfig.bodyName}_${resolution}`,
+            path: `${ringConfig.textures}_${resolution}`,
+            type: 'ring',
+            resolution,
+          });
+        });
+      }
+    });
     textures.push({
       name: 'starsBackground',
-      path: 'stars/starsmilky_8k',
+      path: 'stars/starsMilky_8k',
       type: 'skybox',
       resolution: '8k',
     });
@@ -128,31 +97,19 @@ export class TextureSystem {
       const renderer = new THREE.WebGLRenderer({ antialias: false });
       const max = renderer.capabilities.getMaxAnisotropy();
       renderer.dispose();
-      const finalValue = Math.min(max, MAX_ANISOTROPY_LIMIT);
-      return finalValue;
+      return Math.min(max, MAX_ANISOTROPY_LIMIT);
     } catch (error) {
-      console.warn('[TextureSystem] Anisotropy detection failed:', error);
+      console.warn('Anisotropy detection failed:', error);
       return 1;
     }
   }
 
-  getLoadProgress() {
-    const progress = Math.round((this.loadedCount / this.totalToLoad) * 100);
-    return progress;
-  }
-
   getTexturesObject() {
-    const result = {};
-    for (const [key, value] of this.textures) {
-      result[key] = value;
-    }
-    return result;
+    return Object.fromEntries(this.textures.entries());
   }
 
   dispose() {
-    for (const texture of this.textures.values()) {
-      texture.dispose?.();
-    }
+    this.textures.forEach((texture) => texture.dispose());
     this.textures.clear();
     this.cache.clear();
   }

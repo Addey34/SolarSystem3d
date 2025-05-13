@@ -1,6 +1,5 @@
 import { CelestialObject } from './CelestialObject.js';
 
-// Classe pour charger les classes des objets célestes
 export class CelestialObjectClassLoader {
   constructor(objectConfig) {
     this.objectConfig = objectConfig;

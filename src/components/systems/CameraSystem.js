@@ -7,8 +7,6 @@ export class CameraSystem {
     this.sceneSystem = sceneSystem;
     this.controls = null;
     this.isAnimating = false;
-    this.animationTween = null;
-    this.defaultDistance = 40;
     this.currentTarget = null;
     this.smoothness = 0.1;
     this.fixedDistance = false;
@@ -20,7 +18,6 @@ export class CameraSystem {
     this.camera = camera;
     this.renderer = renderer;
     this.celestialBodies = celestialBodies;
-    this.camera.position.set(0, 50, 200);
     this.initializeControls();
     this.setTarget('sun');
   }
@@ -35,7 +32,7 @@ export class CameraSystem {
     this.controls.enablePan = true;
     this.controls.enableZoom = true;
     this.controls.enableRotate = true;
-    this.controls.minDistance = 5;
+    this.controls.minDistance = 0;
     this.controls.maxDistance = 100;
     this.controls.target.copy(this.sceneSystem.targetObject.position);
   }
@@ -53,59 +50,51 @@ export class CameraSystem {
 
   setTarget(bodyName) {
     const body = this.celestialBodies[bodyName]?.group;
-    if (!body) return;
-    let distance = this.getDefaultDistance(bodyName);
-    if (body.userData?.radius) {
-      const minDistance = body.userData.radius * this.minDistanceMultiplier;
-      distance = Math.max(distance, minDistance);
-    }
-    this.targetDistance = distance;
     const targetPosition = new THREE.Vector3();
     body.getWorldPosition(targetPosition);
+    const defaultDistance = this.getDefaultDistance(bodyName);
+    const radius = body.userData?.radius || 1;
+    const minDistance = radius * this.minDistanceMultiplier;
+    const distance = Math.max(defaultDistance, minDistance);
     const currentDirection = this.userControlledZoom
-      ? new THREE.Vector3()
-          .subVectors(
-            this.camera.position,
-            this.sceneSystem.targetObject.position
-          )
+      ? this.camera.position
+          .clone()
+          .sub(this.sceneSystem.targetObject.position)
           .normalize()
       : new THREE.Vector3(0.2, 0.3, 1).normalize();
-    this.currentTarget = {
-      name: bodyName,
-      group: body,
-      distance: distance,
-      position: targetPosition,
-    };
     const cameraPosition = targetPosition
       .clone()
       .add(currentDirection.multiplyScalar(distance));
+    this.currentTarget = {
+      name: bodyName,
+      group: body,
+      distance,
+      position: targetPosition,
+    };
     this.animateToTarget(cameraPosition, targetPosition);
   }
 
   updateCameraPosition() {
-    if (!this.currentTarget) {
-      return;
-    }
+    if (!this.currentTarget) return;
     this.currentTarget.group.updateMatrixWorld(true);
     const targetPosition = new THREE.Vector3();
     this.currentTarget.group.getWorldPosition(targetPosition);
     this.currentTarget.position.copy(targetPosition);
-    const cameraDirection = new THREE.Vector3()
-      .subVectors(this.camera.position, targetPosition)
+    const direction = this.camera.position
+      .clone()
+      .sub(targetPosition)
       .normalize();
-    if (cameraDirection.length() < 0.1) {
-      cameraDirection.set(0.2, 0.3, 1).normalize();
-    }
+    const safeDirection =
+      direction.length() < 0.1
+        ? new THREE.Vector3(0.2, 0.3, 1).normalize()
+        : direction;
     const cameraPosition = targetPosition
       .clone()
-      .add(cameraDirection.multiplyScalar(this.currentTarget.distance));
+      .add(safeDirection.multiplyScalar(this.currentTarget.distance));
     this.animateToTarget(cameraPosition, targetPosition);
   }
 
   animateToTarget(cameraPosition, targetPosition) {
-    if (this.animationTween) {
-      this.animationTween.stop();
-    }
     this.isAnimating = true;
     const startPos = this.camera.position.clone();
     const startTarget = this.sceneSystem.targetObject.position.clone();
@@ -126,6 +115,7 @@ export class CameraSystem {
       );
       if (this.controls) {
         this.controls.target.copy(this.sceneSystem.targetObject.position);
+        this.controls.update();
       }
       if (progress < 1) {
         requestAnimationFrame(animate);
@@ -146,32 +136,22 @@ export class CameraSystem {
 
   getDefaultDistance(bodyName) {
     const distances = {
-      sun: 40,
-      mercury: 5,
-      venus: 10,
-      earth: 10,
-      moon: 5,
-      mars: 5,
-      jupiter: 15,
-      saturn: 15,
+      sun: 50,
+      mercury: 2,
+      venus: 5,
+      earth: 5,
+      moon: 2,
+      mars: 3,
+      jupiter: 25,
+      saturn: 20,
       uranus: 10,
       neptune: 10,
     };
-    const distance = distances[bodyName] || this.defaultDistance;
-    return distance;
+    return distances[bodyName];
   }
 
   dispose() {
-    if (this.animationTween) {
-      this.animationTween.stop();
-    }
-    if (this.controls) {
-      this.controls.dispose();
-    }
+    if (this.controls) this.controls.dispose();
     TWEEN.removeAll();
-    if (this.targetObject.parent) {
-      this.targetObject.parent.remove(this.targetObject);
-    }
-    console.groupEnd();
   }
 }
