@@ -2,7 +2,6 @@ import * as THREE from 'three';
 
 export function createStarfield(texture, options = {}) {
   texture = texture;
-  texture.colorSpace = THREE.SRGBColorSpace;
   texture.mapping = THREE.EquirectangularReflectionMapping;
 
   const { size = 10000 } = options;
