@@ -34,9 +34,9 @@ export class TextureSystem {
         return;
       }
       const texture = await this.textureLoader.loadAsync(
-        `/assets/textures/${path}.jpg`
+        `${this.config.common.textureBasePath}${path}.jpg`
       );
-      Object.assign(texture, this.config.defaultTextureSettings);
+      Object.assign(texture, this.config.common.defaultTextureSettings);
       texture.anisotropy = this.maxAnisotropy;
       texture.needsUpdate = true;
       this.cache.set(path, texture);

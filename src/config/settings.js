@@ -35,14 +35,10 @@ export const LIGHTING_SETTINGS = {
 };
 
 export const CELESTIAL_CONFIG = {
-  defaultTextureSettings: {
-    wrapS: THREE.RepeatWrapping,
-    wrapT: THREE.RepeatWrapping,
-    anisotropy: 8,
-    colorSpace: THREE.SRGBColorSpace,
-    minFilter: THREE.LinearMipMapLinearFilter,
-    magFilter: THREE.LinearFilter,
-    generateMipmaps: true,
+  common: {
+    textureBasePath: '/assets/textures/',
+    lodLevels: LOD_LEVELS,
+    defaultTextureSettings: DEFAULT_TEXTURE_SETTINGS,
   },
   bodies: {
     sun: {
