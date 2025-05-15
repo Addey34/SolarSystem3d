@@ -1,12 +1,10 @@
 import * as THREE from 'three';
-import { LOD_LEVELS } from '../../config/constants.js';
 import { CELESTIAL_CONFIG } from '../../config/settings.js';
 
 export class CelestialObjectLOD {
   constructor(name, textures, settings) {
     this.name = name;
     this.textures = textures;
-    console.log(textures);
     this.settings = settings;
     this.config = this.getObjectConfig();
     this.lod = new THREE.LOD();
@@ -16,7 +14,9 @@ export class CelestialObjectLOD {
   }
 
   init() {
-    for (const { segments, distance } of Object.values(LOD_LEVELS)) {
+    for (const { segments, distance } of Object.values(
+      CELESTIAL_CONFIG.common.lodLevels
+    )) {
       const tex = this.getTexturesForDistance(distance);
       this.addLODLevel(segments, distance, tex);
     }
@@ -35,10 +35,8 @@ export class CelestialObjectLOD {
   }
 
   createMaterial(textures) {
-    const material = new THREE.MeshStandardMaterial({
+    const material = new THREE.MeshPhongMaterial({
       map: textures.surface,
-      roughness: 0.8,
-      metalness: 0.2,
     });
     if (textures.normalMap) {
       material.normalMap = textures.normalMap;
@@ -155,7 +153,7 @@ export class CelestialObjectLOD {
   }
 
   getQualityForDistance(distance) {
-    const levels = Object.values(LOD_LEVELS).sort(
+    const levels = Object.values(CELESTIAL_CONFIG.common.lodLevels).sort(
       (a, b) => a.distance - b.distance
     );
 

@@ -11,7 +11,7 @@ export class FPSCounter {
     element.id = 'fps-counter';
     Object.assign(element.style, {
       position: 'absolute',
-      top: '10px',
+      bottom: '10px',
       left: '10px',
       color: 'white',
       fontFamily: 'Arial, sans-serif',

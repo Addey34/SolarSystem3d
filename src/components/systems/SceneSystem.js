@@ -113,7 +113,7 @@ export class SceneSystem {
   createOrbitVisual(radius, color) {
     const geometry = new THREE.BufferGeometry();
     const material = new THREE.LineBasicMaterial({
-      color,
+      color: color,
       transparent: true,
       opacity: 0.5,
       linewidth: 1,

@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { DEFAULT_TEXTURE_SETTINGS, LOD_LEVELS } from './constants.js';
 
 export const RENDER_SETTINGS = {
   antialias: true,
@@ -37,14 +36,28 @@ export const LIGHTING_SETTINGS = {
 export const CELESTIAL_CONFIG = {
   common: {
     textureBasePath: '/assets/textures/',
-    lodLevels: LOD_LEVELS,
-    defaultTextureSettings: DEFAULT_TEXTURE_SETTINGS,
+    lodLevels: {
+      ultra: { segments: 256, distance: 20, quality: '8k' },
+      high: { segments: 128, distance: 40, quality: '4k' },
+      medium: { segments: 64, distance: 60, quality: '2k' },
+      low: { segments: 32, distance: 80, quality: '1k' },
+    },
+    defaultTextureSettings: {
+      wrapS: THREE.RepeatWrapping,
+      wrapT: THREE.RepeatWrapping,
+      anisotropy: 8,
+      colorSpace: THREE.SRGBColorSpace,
+      minFilter: THREE.LinearMipMapLinearFilter,
+      magFilter: THREE.LinearFilter,
+      generateMipmaps: true,
+    },
   },
   bodies: {
     sun: {
       radius: 19.0,
       rotationSpeed: 0.001,
       orbitalRadius: 0,
+      orbitalColor: 0x000000,
       textureResolutions: { surface: ['4k', '2k', '1k'] },
       textures: { surface: 'sun/sunSurface' },
     },
