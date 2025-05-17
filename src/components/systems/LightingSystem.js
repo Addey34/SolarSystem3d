@@ -19,7 +19,7 @@ export class LightingSystem {
       LIGHTING_SETTINGS.sun.distance,
       LIGHTING_SETTINGS.sun.decay
     );
-    this.lights.sun.position.set(50, 50, 50);
+    this.lights.sun.position.set(0, 0, 0);
     scene.add(this.lights.sun);
     return this;
   }

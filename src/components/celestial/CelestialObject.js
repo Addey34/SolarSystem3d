@@ -1,43 +1,55 @@
 import * as THREE from 'three';
-import { CelestialObjectLOD } from './CelestialObjectLOD.js';
 
-export class CelestialObject {
-  constructor(textures, config, name) {
+export default class CelestialObject {
+  constructor(textureSystem, config, name, animationSystem) {
     this.name = name;
     this.config = config;
-    this.textures = textures;
+    this.textureSystem = textureSystem;
+    this.animationSystem = animationSystem;
     this.group = this.createMainGroup();
-    this.initSpecificFeatures();
   }
 
   createMainGroup() {
     const group = new THREE.Group();
     group.name = this.name;
-    group.userData = {
-      config: this.config,
-      type: 'celestial-body',
-      radius: this.config.radius,
-    };
-    this.lodSystem = new CelestialObjectLOD(this.name, this.textures, {
-      radius: this.config.radius,
-      rotationSpeed: this.config.rotationSpeed,
-    });
-    group.add(this.lodSystem.lod);
+    this.loadAndApplyTextures();
     return group;
   }
 
-  initSpecificFeatures() {}
-
-  update(delta) {
-    if (!this.group.parent) return;
-    const cameraPosition = this.group.getWorldPosition(new THREE.Vector3());
-    this.lodSystem?.update(delta, cameraPosition);
-    this.updateSpecificFeatures(delta);
+  // Applique les textures en fonction de la distance à la caméra
+  async loadAndApplyTextures() {
+    const texturePromises = Object.keys(this.config.textures).map(
+      async (key) => {
+        const texture = await this.textureSystem.getLODTexture(
+          this.name,
+          key,
+          100
+        ); // 100 étant la distance arbitraire
+        this.applyTextureToMaterial(key, texture);
+      }
+    );
+    await Promise.all(texturePromises);
   }
 
-  updateSpecificFeatures(delta) {}
+  // Applique une texture au matériau du corps céleste
+  applyTextureToMaterial(key, texture) {
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      side: THREE.DoubleSide,
+    });
+    // Créer la géométrie (par exemple, une sphère pour la planète)
+    const geometry = new THREE.SphereGeometry(this.config.radius, 32, 32);
+    const mesh = new THREE.Mesh(geometry, material);
+    this.group.add(mesh);
+  }
 
+  // Dispose les ressources
   dispose() {
-    this.lodSystem?.dispose();
+    this.group?.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry.dispose();
+        child.material.dispose();
+      }
+    });
   }
 }

@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { CAMERA_SETTINGS, RENDER_SETTINGS } from '../../config/settings.js';
-import { createStarfield } from '../celestial/bodies/Starfield.js';
+import { createStarfield } from '../celestial/Starfield.js';
 
 export class SceneSystem {
-  constructor(config) {
+  constructor(config, textureSystem) {
     this.config = config;
+    this.textureSystem = textureSystem;
     this.scene = new THREE.Scene();
     this.orbitGroups = {};
     this.disposeFunctions = [];
@@ -13,10 +14,10 @@ export class SceneSystem {
     this.scene.add(this.targetObject);
   }
 
-  init(textures) {
+  init() {
     this.setupCamera();
     this.setupRenderer();
-    this.setupStarfield(textures);
+    this.setupStarfield();
     this.setupEventListeners();
     return this;
   }
@@ -37,11 +38,6 @@ export class SceneSystem {
       antialias: RENDER_SETTINGS.antialias,
       powerPreference: 'high-performance',
     });
-    this.applyRendererSettings();
-    document.body.appendChild(this.renderer.domElement);
-  }
-
-  applyRendererSettings() {
     const pixelRatio = Math.min(
       window.devicePixelRatio,
       RENDER_SETTINGS.maxPixelRatio
@@ -53,13 +49,24 @@ export class SceneSystem {
     this.renderer.toneMapping = RENDER_SETTINGS.toneMapping;
     this.renderer.physicallyCorrectLights =
       RENDER_SETTINGS.physicallyCorrectLights;
+    document.body.appendChild(this.renderer.domElement);
   }
 
-  setupStarfield(textures) {
-    const starTexture = textures['starsBackground'];
-    this.starfield = createStarfield(starTexture);
-    this.scene.add(this.starfield);
-    this.scene.background = starTexture;
+  setupStarfield() {
+    // Charger la texture des étoiles
+    const texture = this.textureSystem.loadTexture('stars/starsSurface', '8k'); // Assurez-vous que cette texture existe dans le dossier
+
+    texture
+      .then((starTexture) => {
+        const starfield = createStarfield(starTexture);
+        this.scene.add(starfield); // Ajouter l'étoile à la scène
+      })
+      .catch((err) => {
+        console.warn(
+          'Erreur lors du chargement de la texture des étoiles',
+          err
+        );
+      });
   }
 
   setupEventListeners() {
@@ -69,68 +76,69 @@ export class SceneSystem {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     };
     window.addEventListener('resize', onResize, { passive: true });
-    this.disposeFunctions.push(() => {
-      window.removeEventListener('resize', onResize);
-    });
+    this.disposeFunctions.push(() =>
+      window.removeEventListener('resize', onResize)
+    );
   }
 
   setupCelestialBodies(celestialBodies) {
-    const addBodyWithOrbit = (name, config, parentGroup) => {
+    const addBody = (name, config, parentGroup = null) => {
       const body = celestialBodies[name];
+      if (!body) {
+        console.warn(
+          `[SceneSystem] Body "${name}" not found in celestialBodies`
+        );
+        return;
+      }
       body.group.updateMatrixWorld(true);
+      body.group.position.set(config.orbitalRadius || 0, 0, 0);
       const orbitGroup = new THREE.Group();
       orbitGroup.name = `orbit_${name}`;
-      body.group.position.set(config.orbitalRadius || 0, 0, 0);
       orbitGroup.add(body.group);
-      if (parentGroup) {
-        parentGroup.add(orbitGroup);
-      } else {
-        this.scene.add(orbitGroup);
-      }
       this.orbitGroups[name] = orbitGroup;
-      orbitGroup.updateMatrixWorld(true);
       const orbitVisual = this.createOrbitVisual(
         config.orbitalRadius,
         config.orbitalColor
       );
       orbitGroup.add(orbitVisual);
+      if (parentGroup) {
+        parentGroup.add(orbitGroup);
+      } else {
+        this.scene.add(orbitGroup);
+      }
       if (config.satellites) {
         Object.entries(config.satellites).forEach(([satName, satConfig]) => {
-          addBodyWithOrbit(satName, satConfig, body.group);
+          addBody(satName, satConfig, body.group);
         });
       }
     };
-    addBodyWithOrbit('sun', this.config.bodies.sun, null);
+    addBody('sun', this.config.bodies.sun);
     Object.entries(this.config.bodies)
-      .filter(([bodyName]) => bodyName !== 'sun')
-      .forEach(([bodyName, config]) => {
-        if (celestialBodies.sun?.group) {
-          addBodyWithOrbit(bodyName, config, celestialBodies.sun.group);
-        }
+      .filter(([name]) => name !== 'sun')
+      .forEach(([name, config]) => {
+        addBody(name, config, celestialBodies.sun.group);
       });
   }
 
-  createOrbitVisual(radius, color) {
-    const geometry = new THREE.BufferGeometry();
-    const material = new THREE.LineBasicMaterial({
-      color: color,
-      transparent: true,
-      opacity: 0.5,
-      linewidth: 1,
-    });
-    const vertices = [];
-    const segments = 512;
-    for (let i = 0; i <= segments; i++) {
+  createOrbitVisual(radius = 0, color = 0xffffff) {
+    const segments = 128;
+    const points = Array.from({ length: segments + 1 }, (_, i) => {
       const theta = (i / segments) * Math.PI * 2;
-      vertices.push(Math.cos(theta) * radius, 0, Math.sin(theta) * radius);
-    }
-    geometry.setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute(vertices, 3)
-    );
-    const orbitLine = new THREE.Line(geometry, material);
-    orbitLine.rotation.x = Math.PI;
-    return orbitLine;
+      return new THREE.Vector3(
+        Math.cos(theta) * radius,
+        0,
+        Math.sin(theta) * radius
+      );
+    });
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.3,
+    });
+    const line = new THREE.Line(geometry, material);
+    line.rotation.x = Math.PI;
+    return line;
   }
 
   updateCameraTarget(position) {
@@ -138,12 +146,18 @@ export class SceneSystem {
     this.camera.lookAt(this.targetObject.position);
   }
 
-  getWorldPosition(bodyName) {
-    const body = this.celestialBody[bodyName]?.group;
+  getWorldPosition(bodyName, celestialBodies) {
+    const body = celestialBodies[bodyName]?.group;
+    if (!body) {
+      console.warn(
+        `[SceneSystem] getWorldPosition: Body "${bodyName}" not found`
+      );
+      return null;
+    }
     body.updateMatrixWorld(true);
-    const position = new THREE.Vector3();
-    body.getWorldPosition(position);
-    return position;
+    const pos = new THREE.Vector3();
+    body.getWorldPosition(pos);
+    return pos;
   }
 
   dispose() {

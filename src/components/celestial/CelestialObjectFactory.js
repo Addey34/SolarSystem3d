@@ -1,43 +1,58 @@
-import { CelestialObjectClassLoader } from './CelestialObjectClassLoader.js';
+import CelestialObject from './CelestialObject.js';
 
-export class CelestialObjectFactory {
-  constructor(textures, objectConfig) {
-    this.textures = textures;
+export default class CelestialObjectFactory {
+  constructor(textureSystem, objectConfig, animationSystem) {
+    this.textureSystem = textureSystem;
     this.objectConfig = objectConfig;
-    this.objectClassLoader = new CelestialObjectClassLoader(objectConfig);
+    this.animationSystem = animationSystem;
+    this.classCache = new Map();
   }
 
+  // Crée tous les corps célestes définis dans la config
   async createAll() {
-    await this.objectClassLoader.loadObjectClasses();
     const bodies = {};
-    const createBody = (name, config, parentName = null) => {
-      try {
-        const ObjectClass = this.objectClassLoader.getObjectClass(name);
-        const body = new ObjectClass(this.textures, config, name);
-        body.group.userData = {
-          config,
-          type: 'celestial-body',
-          parent: parentName,
-        };
-        bodies[name] = body;
-        if (config.satellites) {
-          Object.entries(config.satellites).forEach(([satName, satConfig]) => {
-            createBody(satName, satConfig, name);
-          });
-        }
-        return body;
-      } catch (error) {
-        console.error(`Failed to create ${name}:`, error);
-        return null;
-      }
-    };
-
-    await Promise.all(
-      Object.entries(this.objectConfig.bodies).map(([name, config]) =>
-        createBody(name, config)
-      )
-    );
-
+    const creationPromises = [];
+    // Création des corps célestes avec leurs configurations respectives
+    for (const [name, config] of Object.entries(this.objectConfig.bodies)) {
+      creationPromises.push(
+        this.createBodyWithHierarchy(name, config, null, bodies)
+      );
+    }
+    await Promise.all(creationPromises);
     return bodies;
+  }
+
+  // Crée un corps céleste et ses satellites récursivement
+  async createBodyWithHierarchy(name, config, parentName, bodies) {
+    let body;
+    try {
+      // Créer l'objet céleste en utilisant CelestialObject
+      body = new CelestialObject(
+        this.textureSystem,
+        config,
+        name,
+        this.animationSystem
+      );
+      // Ajout des métadonnées utilisateur pour la hiérarchie et propriétés
+      body.group.userData = {
+        config,
+        type: 'celestial-body',
+        parent: parentName,
+        radius: config.radius,
+      };
+      bodies[name] = body;
+    } catch (error) {
+      console.error(`Erreur lors de la création de ${name}`, error);
+      return null;
+    }
+    // Création récursive des satellites s’il y en a
+    if (config.satellites) {
+      await Promise.all(
+        Object.entries(config.satellites).map(([satName, satConfig]) =>
+          this.createBodyWithHierarchy(satName, satConfig, name, bodies)
+        )
+      );
+    }
+    return body;
   }
 }

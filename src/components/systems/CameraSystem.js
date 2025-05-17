@@ -1,70 +1,75 @@
 import TWEEN from '@tweenjs/tween.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CAMERA_SETTINGS } from '../../config/settings.js';
 
 export class CameraSystem {
-  constructor(sceneSystem) {
-    this.sceneSystem = sceneSystem;
+  constructor() {
     this.controls = null;
     this.isAnimating = false;
     this.currentTarget = null;
     this.smoothness = 0.1;
-    this.fixedDistance = false;
-    this.minDistanceMultiplier = 3;
+    this.minDistanceMultiplier = 1;
     this.userControlledZoom = false;
+    this.initialized = false;
+    this.targetObject = new THREE.Object3D();
+    this.targetObject.position.set(0, 0, 0);
   }
 
-  init(camera, renderer, celestialBodies) {
+  // Initialisation du système caméra avec la caméra, renderer, corps célestes et système de scène (optionnel)
+  init(camera, renderer, celestialBodies, sceneSystem = null) {
     this.camera = camera;
     this.renderer = renderer;
     this.celestialBodies = celestialBodies;
+    // Si pas de système de scène passé, on crée un fallback avec un updateCameraTarget basique
+    this.sceneSystem = sceneSystem || {
+      targetObject: this.targetObject,
+      updateCameraTarget: (pos) => {
+        this.targetObject.position.copy(pos);
+        this.camera.lookAt(this.targetObject.position);
+      },
+    };
     this.initializeControls();
-    this.setTarget('sun');
+    // Si un système de scène avec targetObject est fourni, on remplace celui par défaut
+    if (sceneSystem?.targetObject) {
+      this.targetObject = sceneSystem.targetObject;
+    }
+    this.initialized = true;
   }
 
+  // Configuration des contrôles orbitaux de la caméra (souris / tactile)
   initializeControls() {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.25;
     this.controls.screenSpacePanning = false;
+    this.controls.target.copy(this.targetObject.position);
     this.controls.maxPolarAngle = Math.PI;
     this.controls.minPolarAngle = 0;
     this.controls.enablePan = true;
     this.controls.enableZoom = true;
     this.controls.enableRotate = true;
     this.controls.minDistance = 0;
-    this.controls.maxDistance = 100;
-    this.controls.target.copy(this.sceneSystem.targetObject.position);
+    this.controls.maxDistance = 1000;
   }
 
-  update(delta) {
-    if (!this.currentTarget) return;
-    const targetPosition = new THREE.Vector3();
-    this.currentTarget.group.getWorldPosition(targetPosition);
-    this.sceneSystem.updateCameraTarget(targetPosition);
-    if (this.controls) {
-      this.controls.target.copy(this.sceneSystem.targetObject.position);
-      this.controls.update();
-    }
-  }
-
+  // Change la cible de la caméra vers un corps céleste donné
   setTarget(bodyName) {
     const body = this.celestialBodies[bodyName]?.group;
+    if (!body) {
+      console.error(`[CameraSystem] Corps céleste "${bodyName}" introuvable`);
+      return;
+    }
     const targetPosition = new THREE.Vector3();
     body.getWorldPosition(targetPosition);
-    const defaultDistance = this.getDefaultDistance(bodyName);
     const radius = body.userData?.radius || 1;
+    const defaultDistance = this.getDefaultDistance(bodyName);
     const minDistance = radius * this.minDistanceMultiplier;
     const distance = Math.max(defaultDistance, minDistance);
-    const currentDirection = this.userControlledZoom
-      ? this.camera.position
-          .clone()
-          .sub(this.sceneSystem.targetObject.position)
-          .normalize()
-      : new THREE.Vector3(0.2, 0.3, 1).normalize();
+    const direction = new THREE.Vector3(0, 0, 1).normalize();
     const cameraPosition = targetPosition
       .clone()
-      .add(currentDirection.multiplyScalar(distance));
+      .add(direction.multiplyScalar(distance));
     this.currentTarget = {
       name: bodyName,
       group: body,
@@ -74,84 +79,46 @@ export class CameraSystem {
     this.animateToTarget(cameraPosition, targetPosition);
   }
 
-  updateCameraPosition() {
-    if (!this.currentTarget) return;
-    this.currentTarget.group.updateMatrixWorld(true);
-    const targetPosition = new THREE.Vector3();
-    this.currentTarget.group.getWorldPosition(targetPosition);
-    this.currentTarget.position.copy(targetPosition);
-    const direction = this.camera.position
-      .clone()
-      .sub(targetPosition)
-      .normalize();
-    const safeDirection =
-      direction.length() < 0.1
-        ? new THREE.Vector3(0.2, 0.3, 1).normalize()
-        : direction;
-    const cameraPosition = targetPosition
-      .clone()
-      .add(safeDirection.multiplyScalar(this.currentTarget.distance));
-    this.animateToTarget(cameraPosition, targetPosition);
-  }
-
+  // Animation en douceur de la caméra vers une position cible avec TWEEN.js
   animateToTarget(cameraPosition, targetPosition) {
     this.isAnimating = true;
-    const startPos = this.camera.position.clone();
-    const startTarget = this.sceneSystem.targetObject.position.clone();
-    const duration = 1000;
-    let startTime = null;
-    const animate = (timestamp) => {
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min((timestamp - startTime) / duration, 1);
-      const t =
-        progress < 0.5
-          ? 2 * progress * progress
-          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-      this.camera.position.lerpVectors(startPos, cameraPosition, t);
-      this.sceneSystem.targetObject.position.lerpVectors(
-        startTarget,
-        targetPosition,
-        t
-      );
-      if (this.controls) {
-        this.controls.target.copy(this.sceneSystem.targetObject.position);
-        this.controls.update();
-      }
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
+    new TWEEN.Tween(this.camera.position)
+      .to(cameraPosition, 1000)
+      .easing(TWEEN.Easing.Quadratic.InOut)
+      .start();
+    new TWEEN.Tween(this.targetObject.position)
+      .to(targetPosition, 1000)
+      .easing(TWEEN.Easing.Quadratic.InOut)
+      .onUpdate(() => {
+        if (this.controls) {
+          this.controls.target.copy(this.targetObject.position);
+          this.controls.update();
+        }
+      })
+      .onComplete(() => {
         this.isAnimating = false;
         if (this.controls) {
           this.controls.enabled = true;
-          this.controls.target.copy(targetPosition);
-          this.controls.update();
         }
-      }
-    };
+      })
+      .start();
+  }
+
+  update(delta) {
+    if (!this.currentTarget || !this.sceneSystem) return;
+    this.currentTarget.group.getWorldPosition(this.currentTarget.position);
+    this.sceneSystem.updateCameraTarget(this.currentTarget.position);
     if (this.controls) {
-      this.controls.enabled = false;
+      this.controls.target.copy(this.targetObject.position);
+      this.controls.update();
     }
-    requestAnimationFrame(animate);
   }
 
   getDefaultDistance(bodyName) {
-    const distances = {
-      sun: 50,
-      mercury: 2,
-      venus: 5,
-      earth: 5,
-      moon: 2,
-      mars: 3,
-      jupiter: 25,
-      saturn: 20,
-      uranus: 10,
-      neptune: 10,
-    };
-    return distances[bodyName];
+    return CAMERA_SETTINGS.bodyDistances[bodyName];
   }
 
   dispose() {
     if (this.controls) this.controls.dispose();
-    TWEEN.removeAll();
   }
 }

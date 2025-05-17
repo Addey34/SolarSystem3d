@@ -1,76 +1,93 @@
-import TWEEN from '@tweenjs/tween.js';
 import * as THREE from 'three';
 import { FPSCounter } from '../utils/FPSCounter.js';
-import { CameraSystem } from './CameraSystem.js';
 
 export class AnimationSystem {
-  constructor() {
+  constructor(targetFPS = 60) {
     this.clock = new THREE.Clock();
+    this.updatables = new Set();
     this.fpsCounter = new FPSCounter();
-    this.animationFrameId = null;
+    this.targetFPS = targetFPS;
+    this.lastFrameTime = 0;
     this.isRunning = false;
-    this.cameraSystem = new CameraSystem();
-    console.groupEnd();
   }
 
-  init(config) {
-    this.scene = config.scene;
-    this.camera = config.camera;
-    this.renderer = config.renderer;
-    this.celestialBodies = config.celestialBodies;
-    this.orbitGroups = config.orbitGroups;
-    this.lightingSystem = config.lightingSystem;
-    this.sceneSystem = config.sceneSystem;
-    this.cameraSystem = config.cameraSystem;
+  init({ scene, camera, renderer, cameraSystem }) {
+    this.scene = scene;
+    this.camera = camera;
+    this.renderer = renderer;
+    this.cameraSystem = cameraSystem;
     this.fpsCounter.init();
   }
 
   run() {
+    if (this.isRunning) return;
     this.isRunning = true;
     this.clock.start();
-    this.fpsCounter.reset();
     this.animate();
   }
 
   animate() {
-    this.animationFrameId = requestAnimationFrame(() => this.animate());
+    this.animationFrame = requestAnimationFrame(() => this.animate());
     const delta = this.clock.getDelta();
-    this.update(delta);
-    this.render();
-    this.fpsCounter.update(performance.now(), this.renderer);
+    const now = performance.now();
+    const frameInterval = 1000 / this.targetFPS;
+    if (now - this.lastFrameTime >= frameInterval) {
+      this.update(delta);
+      this.render();
+      this.fpsCounter.update(now, this.renderer);
+      this.lastFrameTime = now;
+    }
   }
 
   update(delta) {
-    Object.entries(this.orbitGroups).forEach(([name, group]) => {
-      if (group) {
-        group.updateMatrixWorld();
-      } else {
-        console.warn(`Orbit group "${name}" is null`);
-      }
+    if (!this.camera) {
+      console.warn('[AnimationSystem] Caméra non définie dans update.');
+      return;
+    }
+    const cameraPos = this.camera.position.clone();
+    const sorted = Array.from(this.updatables).sort((a, b) => {
+      const distA = a.group?.position.distanceToSquared(cameraPos) ?? Infinity;
+      const distB = b.group?.position.distanceToSquared(cameraPos) ?? Infinity;
+      return distA - distB;
     });
-    Object.entries(this.celestialBodies).forEach(([name, body]) => {
-      if (body?.group) {
-        body.group.updateMatrixWorld(true);
-      } else {
-        console.warn(`Celestial body "${name}" has no group`);
+    for (const obj of sorted) {
+      if (typeof obj.update === 'function') {
+        obj.update(delta, cameraPos);
       }
-    });
-    if (this.cameraSystem.controls && !this.cameraSystem.isAnimating) {
-      this.cameraSystem.controls.update();
+    }
+    if (typeof this.cameraSystem?.update === 'function') {
+      this.cameraSystem.update(delta);
     }
   }
 
   render() {
+    if (!this.scene || !this.camera || !this.renderer) {
+      console.warn(
+        '[AnimationSystem] Scène, caméra ou renderer manquants dans render().'
+      );
+      return;
+    }
     this.renderer.render(this.scene, this.camera);
   }
 
-  dispose() {
-    this.isRunning = false;
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
+  addUpdatable(obj) {
+    if (typeof obj.update === 'function') {
+      this.updatables.add(obj);
+    } else {
+      console.warn(
+        '[AnimationSystem] Objet ignoré (pas de méthode update).',
+        obj
+      );
     }
+  }
+
+  dispose() {
+    if (this.animationFrame) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+    }
+    this.updatables.clear();
     this.fpsCounter.dispose();
-    this.cameraSystem.dispose();
-    TWEEN.removeAll();
+    this.isRunning = false;
   }
 }

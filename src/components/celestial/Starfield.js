@@ -1,9 +1,8 @@
 import * as THREE from 'three';
 
 export function createStarfield(texture, options = {}) {
-  texture = texture;
-
   const { size = 10000 } = options;
+
   const geometry = new THREE.SphereGeometry(size, 128, 128);
   const material = new THREE.MeshBasicMaterial({
     map: texture,
