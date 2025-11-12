@@ -6,7 +6,7 @@
  */
 
 class Logger {
-  static DEBUG = true; // toggle logs globally
+  static DEBUG = false; // toggle logs globally
 
   static colors = {
     reset: '\x1b[0m',

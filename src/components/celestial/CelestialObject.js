@@ -11,7 +11,7 @@ export default class CelestialObject {
     this.orbitAngle = 0;
     this.orbitRadius = config.orbitalRadius;
     this.rotationSpeed = config.rotationSpeed;
-    this.orbitSpeed = config.orbitSpeed ?? (1 / (this.orbitRadius || 1)) * 0.05;
+    this.orbitSpeed = config.orbitSpeed;
     if (this.animationSystem) {
       this.animationSystem.addUpdatable(this);
     }
