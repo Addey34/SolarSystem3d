@@ -2,6 +2,7 @@ import TWEEN from '@tweenjs/tween.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CAMERA_SETTINGS } from '../../config/settings.js';
+import Logger from '../../utils/Logger.js';
 
 export class CameraSystem {
   constructor() {
@@ -14,14 +15,19 @@ export class CameraSystem {
     this.initialized = false;
     this.targetObject = new THREE.Object3D();
     this.targetObject.position.set(0, 0, 0);
+    Logger.info('[CameraSystem] Camera instance created ✅');
   }
 
-  // Initialisation du système caméra avec la caméra, renderer, corps célestes et système de scène (optionnel)
-  init(camera, renderer, celestialBodies, sceneSystem = null) {
+  init(
+    camera,
+    renderer,
+    celestialBodies,
+    sceneSystem = null,
+    tweenGroup = null
+  ) {
     this.camera = camera;
     this.renderer = renderer;
     this.celestialBodies = celestialBodies;
-    // Si pas de système de scène passé, on crée un fallback avec un updateCameraTarget basique
     this.sceneSystem = sceneSystem || {
       targetObject: this.targetObject,
       updateCameraTarget: (pos) => {
@@ -29,15 +35,15 @@ export class CameraSystem {
         this.camera.lookAt(this.targetObject.position);
       },
     };
+    this.tweenGroup = tweenGroup;
     this.initializeControls();
-    // Si un système de scène avec targetObject est fourni, on remplace celui par défaut
     if (sceneSystem?.targetObject) {
       this.targetObject = sceneSystem.targetObject;
     }
     this.initialized = true;
+    Logger.success('[CameraSystem] Initialized camera and controls');
   }
 
-  // Configuration des contrôles orbitaux de la caméra (souris / tactile)
   initializeControls() {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
@@ -49,19 +55,21 @@ export class CameraSystem {
     this.controls.enablePan = true;
     this.controls.enableZoom = true;
     this.controls.enableRotate = true;
-    this.controls.minDistance = 0;
+    this.controls.minDistance = 2;
     this.controls.maxDistance = 1000;
+    Logger.debug('[CameraSystem] OrbitControls configured');
   }
 
-  // Change la cible de la caméra vers un corps céleste donné
   setTarget(bodyName) {
     const body = this.celestialBodies[bodyName]?.group;
     if (!body) {
-      console.error(`[CameraSystem] Corps céleste "${bodyName}" introuvable`);
+      Logger.warn(`[CameraSystem] Body "${bodyName}" not found`);
       return;
     }
+
     const targetPosition = new THREE.Vector3();
     body.getWorldPosition(targetPosition);
+
     const radius = body.userData?.radius || 1;
     const defaultDistance = this.getDefaultDistance(bodyName);
     const minDistance = radius * this.minDistanceMultiplier;
@@ -70,23 +78,53 @@ export class CameraSystem {
     const cameraPosition = targetPosition
       .clone()
       .add(direction.multiplyScalar(distance));
+
     this.currentTarget = {
       name: bodyName,
       group: body,
       distance,
       position: targetPosition,
     };
+
+    Logger.info(
+      `[CameraSystem] Animating camera to target: ${bodyName} at distance ${distance}`
+    );
     this.animateToTarget(cameraPosition, targetPosition);
   }
 
-  // Animation en douceur de la caméra vers une position cible avec TWEEN.js
   animateToTarget(cameraPosition, targetPosition) {
     this.isAnimating = true;
-    new TWEEN.Tween(this.camera.position)
-      .to(cameraPosition, 1000)
+    const from = {
+      x: this.camera.position.x,
+      y: this.camera.position.y,
+      z: this.camera.position.z,
+    };
+
+    const to = {
+      x: cameraPosition.x,
+      y: cameraPosition.y,
+      z: cameraPosition.z,
+    };
+
+    new TWEEN.Tween(from, this.tweenGroup)
+      .to(to, 1000)
       .easing(TWEEN.Easing.Quadratic.InOut)
+      .onUpdate(() => {
+        this.camera.position.set(from.x, from.y, from.z);
+        if (this.controls) this.controls.update();
+      })
+      .onComplete(() => {
+        this.isAnimating = false;
+        if (this.controls) {
+          this.controls.target.copy(this.targetObject.position);
+          this.controls.update();
+          this.controls.enabled = true;
+        }
+        Logger.success('[CameraSystem] Camera animation completed');
+      })
       .start();
-    new TWEEN.Tween(this.targetObject.position)
+
+    new TWEEN.Tween(this.targetObject.position, this.tweenGroup)
       .to(targetPosition, 1000)
       .easing(TWEEN.Easing.Quadratic.InOut)
       .onUpdate(() => {
@@ -95,21 +133,18 @@ export class CameraSystem {
           this.controls.update();
         }
       })
-      .onComplete(() => {
-        this.isAnimating = false;
-        if (this.controls) {
-          this.controls.enabled = true;
-        }
-      })
       .start();
   }
 
-  update(delta) {
+  update(_delta) {
     if (!this.currentTarget || !this.sceneSystem) return;
     this.currentTarget.group.getWorldPosition(this.currentTarget.position);
     this.sceneSystem.updateCameraTarget(this.currentTarget.position);
+
     if (this.controls) {
-      this.controls.target.copy(this.targetObject.position);
+      if (!this.isAnimating && !this.userControlledZoom) {
+        this.controls.target.copy(this.targetObject.position);
+      }
       this.controls.update();
     }
   }
@@ -120,5 +155,6 @@ export class CameraSystem {
 
   dispose() {
     if (this.controls) this.controls.dispose();
+    Logger.warn('[CameraSystem] Controls disposed');
   }
 }

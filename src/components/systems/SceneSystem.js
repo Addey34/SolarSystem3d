@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CAMERA_SETTINGS, RENDER_SETTINGS } from '../../config/settings.js';
+import Logger from '../../utils/Logger.js';
 import { createStarfield } from '../celestial/Starfield.js';
 
 export class SceneSystem {
@@ -12,9 +13,11 @@ export class SceneSystem {
     this.targetObject = new THREE.Object3D();
     this.targetObject.name = 'mainTarget';
     this.scene.add(this.targetObject);
+    Logger.info('[SceneSystem] Scene instance created ✅');
   }
 
   init() {
+    Logger.debug('[SceneSystem] Initializing scene...');
     this.setupCamera();
     this.setupRenderer();
     this.setupStarfield();
@@ -31,6 +34,7 @@ export class SceneSystem {
     );
     this.camera.position.copy(CAMERA_SETTINGS.initialPosition);
     this.camera.lookAt(this.targetObject.position);
+    Logger.debug('[SceneSystem] Camera configured');
   }
 
   setupRenderer() {
@@ -50,22 +54,19 @@ export class SceneSystem {
     this.renderer.physicallyCorrectLights =
       RENDER_SETTINGS.physicallyCorrectLights;
     document.body.appendChild(this.renderer.domElement);
+    Logger.debug('[SceneSystem] Renderer initialized');
   }
 
   setupStarfield() {
-    // Charger la texture des étoiles
-    const texture = this.textureSystem.loadTexture('stars/starsSurface', '8k'); // Assurez-vous que cette texture existe dans le dossier
-
+    const texture = this.textureSystem.loadTexture('stars/starsSurface', '8k');
     texture
       .then((starTexture) => {
         const starfield = createStarfield(starTexture);
-        this.scene.add(starfield); // Ajouter l'étoile à la scène
+        this.scene.add(starfield);
+        Logger.success('[SceneSystem] Starfield added to scene');
       })
       .catch((err) => {
-        console.warn(
-          'Erreur lors du chargement de la texture des étoiles',
-          err
-        );
+        Logger.warn('[SceneSystem] Failed to load starfield texture', err);
       });
   }
 
@@ -79,23 +80,28 @@ export class SceneSystem {
     this.disposeFunctions.push(() =>
       window.removeEventListener('resize', onResize)
     );
+    Logger.debug('[SceneSystem] Resize listener added');
   }
 
   setupCelestialBodies(celestialBodies) {
+    Logger.info('[SceneSystem] Adding celestial bodies to scene');
     const addBody = (name, config, parentGroup = null) => {
       const body = celestialBodies[name];
       if (!body) {
-        console.warn(
+        Logger.warn(
           `[SceneSystem] Body "${name}" not found in celestialBodies`
         );
         return;
       }
       body.group.updateMatrixWorld(true);
       body.group.position.set(config.orbitalRadius || 0, 0, 0);
+      Logger.debug(`[SceneSystem] Adding ${name} to scene`);
+
       const orbitGroup = new THREE.Group();
       orbitGroup.name = `orbit_${name}`;
       orbitGroup.add(body.group);
       this.orbitGroups[name] = orbitGroup;
+
       const orbitVisual = this.createOrbitVisual(
         config.orbitalRadius,
         config.orbitalColor
@@ -118,6 +124,7 @@ export class SceneSystem {
       .forEach(([name, config]) => {
         addBody(name, config, celestialBodies.sun.group);
       });
+    Logger.success('[SceneSystem] Celestial bodies added to scene');
   }
 
   createOrbitVisual(radius = 0, color = 0xffffff) {
@@ -149,7 +156,7 @@ export class SceneSystem {
   getWorldPosition(bodyName, celestialBodies) {
     const body = celestialBodies[bodyName]?.group;
     if (!body) {
-      console.warn(
+      Logger.warn(
         `[SceneSystem] getWorldPosition: Body "${bodyName}" not found`
       );
       return null;
@@ -161,8 +168,10 @@ export class SceneSystem {
   }
 
   dispose() {
+    Logger.warn('[SceneSystem] Disposing scene...');
     this.disposeFunctions.forEach((fn) => fn());
     this.renderer.dispose();
     this.renderer.domElement.remove();
+    Logger.success('[SceneSystem] Scene disposed');
   }
 }

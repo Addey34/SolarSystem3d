@@ -1,9 +1,10 @@
 import * as THREE from 'three';
+import Logger from '../../utils/Logger.js';
 
 export class TextureSystem {
   static #instance;
 
-  // Méthode pour récupérer l'instance unique du TextureSystem
+  // Singleton
   static getInstance(config) {
     if (!TextureSystem.#instance) {
       TextureSystem.#instance = new TextureSystem(config);
@@ -12,31 +13,33 @@ export class TextureSystem {
     return TextureSystem.#instance;
   }
 
-  // Constructeur de la classe TextureSystem
+  // Constructor
   constructor(config) {
     if (TextureSystem.#instance) {
       return TextureSystem.#instance;
     }
-
-    // Initialisation des propriétés du système de textures
-    this.config = config;
     this.textureLoader = new THREE.TextureLoader();
-    this.cache = new Map();
+    this.config = config;
     this.basePath = config.basePath;
     this.defaultSettings = config.defaultSettings;
+    this.cache = new Map();
     this.loadingPromises = new Map();
+    Logger.info('[TextureSystem] Instance created ✅');
   }
 
-  // Méthode pour charger une texture
-  async loadTexture(relativePath, quality = '8k') {
+  // Load a texture
+  async loadTexture(relativePath, quality) {
     const fullPath = `${this.basePath}${relativePath}_${quality}.jpg`;
     if (this.cache.has(fullPath)) {
-      return Promise.resolve(this.cache.get(fullPath));
+      Logger.debug(`[TextureSystem] Cache hit: ${fullPath}`);
+      return this.cache.get(fullPath);
     }
+    Logger.debug(`[TextureSystem] Loading: ${fullPath}`);
     const promise = new Promise((resolve, reject) => {
       this.textureLoader.load(
         fullPath,
         (texture) => {
+          Logger.success(`[TextureSystem] Loaded: ${fullPath}`);
           Object.entries(this.defaultSettings).forEach(([key, value]) => {
             if (key in texture) texture[key] = value;
           });
@@ -47,25 +50,23 @@ export class TextureSystem {
         },
         undefined,
         (err) => {
-          console.warn(
-            `[TextureSystem] Failed to load texture: ${fullPath}`,
-            err
-          );
+          Logger.warn(`[TextureSystem] Failed: ${fullPath}`, err);
           this.loadingPromises.delete(fullPath);
           reject(err);
         }
       );
     });
-
     this.loadingPromises.set(fullPath, promise);
     return promise;
   }
 
-  // Méthode pour précharger les textures critiques avec un suivi de progression
+  // Preload critical textures
   async preloadCriticalTextures(progressCallback = () => {}) {
     const priorityList = this.config.loadPriority;
     const total = priorityList.length;
     let loaded = 0;
+    Logger.info(`[TextureSystem] Priority list: ${priorityList}`);
+    Logger.info(`[TextureSystem] Preloading top priority textures (${total})`);
     for (const bodyName of priorityList) {
       let bodyConfig = this.config.bodies?.[bodyName];
       if (!bodyConfig) {
@@ -77,7 +78,7 @@ export class TextureSystem {
         }
       }
       if (!bodyConfig) {
-        console.warn(`[TextureSystem] Body config not found for: ${bodyName}`);
+        Logger.warn(`[TextureSystem] No config for body: ${bodyName}`);
         continue;
       }
       const textureKeys = Object.keys(bodyConfig.textures);
@@ -90,10 +91,13 @@ export class TextureSystem {
           `Loading ${bodyName} ${key} (${bestQuality})`
         );
         try {
+          Logger.debug(
+            `[TextureSystem] Preload ${bodyName}:${key} -> ${bestQuality}`
+          );
           await this.loadTexture(textureBasePath, bestQuality);
         } catch {
-          console.warn(
-            `[TextureSystem] Failed to preload texture ${textureBasePath}_${bestQuality}`
+          Logger.warn(
+            `[TextureSystem] Failed preload: ${textureBasePath}_${bestQuality}`
           );
         }
       }
@@ -101,9 +105,10 @@ export class TextureSystem {
       progressCallback(loaded / total, `Loaded ${bodyName}`);
     }
     progressCallback(1, 'All critical textures loaded');
+    Logger.success('[TextureSystem] Priority textures loaded');
   }
 
-  // Méthode pour récupérer une texture en fonction de la distance (LOD)
+  // Get a LOD texture
   async getLODTexture(bodyName, textureKey, distance) {
     let bodyConfig = this.config.bodies?.[bodyName];
     if (!bodyConfig) {
@@ -124,43 +129,48 @@ export class TextureSystem {
         `Texture key "${textureKey}" not found for body "${bodyName}"`
       );
     }
-    const perfQualities = this.config.textureQuality || {
-      ultra: { distance: 0 },
-      high: { distance: 20 },
-      medium: { distance: 40 },
-      low: { distance: 60 },
-    };
-    const sortedDistances = Object.values(perfQualities)
-      .map((v) => v.distance)
-      .sort((a, b) => a - b);
-    let chosenQuality = resolutions[resolutions.length - 1];
-    for (const distLimit of sortedDistances) {
-      if (distance <= distLimit) {
-        const entry = Object.entries(perfQualities).find(
-          ([, v]) => v.distance === distLimit
-        );
-        if (entry) {
-          const qualityName = entry[0];
-          if (resolutions.includes(qualityName)) {
-            chosenQuality = qualityName;
-          } else {
-            chosenQuality =
-              resolutions.find(
-                (q) => perfQualities[q]?.distance <= distLimit
-              ) || chosenQuality;
-          }
-        }
-        break;
-      }
-    }
+    const chosenQuality = this.chooseQualityBasedOnDistance(
+      distance,
+      resolutions
+    );
+    Logger.debug(
+      `[TextureSystem] LOD ${bodyName}:${textureKey} -> ${chosenQuality} (distance: ${distance})`
+    );
     return this.loadTexture(textureBasePath, chosenQuality);
   }
 
+  chooseQualityBasedOnDistance(distance, resolutions) {
+    const perfQualities = this.config.textureQuality || {
+      ultra: { distance: 0, quality: '8k' },
+      high: { distance: 20, quality: '4k' },
+      medium: { distance: 40, quality: '2k' },
+      low: { distance: 60, quality: '1k' },
+    };
+    let chosenQuality = resolutions[resolutions.length - 1];
+    const sortedDistances = Object.values(perfQualities)
+      .map((v) => v.distance)
+      .sort((a, b) => a - b);
+    for (const distLimit of sortedDistances) {
+      if (distance <= distLimit) {
+        const qualityMatch = Object.keys(perfQualities).find(
+          (key) => perfQualities[key].distance === distLimit
+        );
+        chosenQuality = resolutions.includes(qualityMatch)
+          ? qualityMatch
+          : resolutions.find((q) => perfQualities[q]?.distance <= distLimit) ||
+            chosenQuality;
+        break;
+      }
+    }
+
+    return chosenQuality;
+  }
+
   dispose() {
-    this.cache.forEach((texture, key) => {
-      texture.dispose?.();
-    });
+    Logger.warn('[TextureSystem] Disposing textures cache...');
+    this.cache.forEach((texture) => texture.dispose?.());
     this.cache.clear();
     this.loadingPromises.clear();
+    Logger.success('[TextureSystem] Cleanup complete');
   }
 }

@@ -1,3 +1,4 @@
+import Logger from '../../utils/Logger.js';
 import CelestialObject from './CelestialObject.js';
 
 export default class CelestialObjectFactory {
@@ -8,32 +9,40 @@ export default class CelestialObjectFactory {
     this.classCache = new Map();
   }
 
-  // Crée tous les corps célestes définis dans la config
+  // Création de tous les corps célestes avec leurs satellites
   async createAll() {
     const bodies = {};
     const creationPromises = [];
-    // Création des corps célestes avec leurs configurations respectives
+
+    Logger.info('[CelestialObjectFactory] Creating all celestial bodies...');
+
     for (const [name, config] of Object.entries(this.objectConfig.bodies)) {
       creationPromises.push(
         this.createBodyWithHierarchy(name, config, null, bodies)
       );
     }
+
     await Promise.all(creationPromises);
+    Logger.success('[CelestialObjectFactory] All celestial bodies created');
     return bodies;
   }
 
-  // Crée un corps céleste et ses satellites récursivement
+  // Création d'un corps céleste avec ses satellites
   async createBodyWithHierarchy(name, config, parentName, bodies) {
+    if (this.classCache.has(name)) {
+      Logger.debug(`[CelestialObjectFactory] Using cached body: ${name}`);
+      return this.classCache.get(name);
+    }
+
     let body;
     try {
-      // Créer l'objet céleste en utilisant CelestialObject
+      Logger.debug(`[CelestialObjectFactory] Creating body: ${name}`);
       body = new CelestialObject(
         this.textureSystem,
         config,
         name,
         this.animationSystem
       );
-      // Ajout des métadonnées utilisateur pour la hiérarchie et propriétés
       body.group.userData = {
         config,
         type: 'celestial-body',
@@ -41,11 +50,17 @@ export default class CelestialObjectFactory {
         radius: config.radius,
       };
       bodies[name] = body;
+      this.classCache.set(name, body);
+      Logger.success(`[CelestialObjectFactory] Body created: ${name}`);
     } catch (error) {
-      console.error(`Erreur lors de la création de ${name}`, error);
+      Logger.error(
+        `[CelestialObjectFactory] Failed to create body: ${name}`,
+        error
+      );
       return null;
     }
-    // Création récursive des satellites s’il y en a
+
+    // Création récursive des satellites
     if (config.satellites) {
       await Promise.all(
         Object.entries(config.satellites).map(([satName, satConfig]) =>
@@ -53,6 +68,7 @@ export default class CelestialObjectFactory {
         )
       );
     }
+
     return body;
   }
 }

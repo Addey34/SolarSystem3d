@@ -105,17 +105,19 @@ export const CELESTIAL_CONFIG = {
       textures: { surface: 'stars/starsSurface' },
     },
     sun: {
-      radius: 19.0,
+      radius: 10,
       rotationSpeed: 0.001,
       orbitalRadius: 0,
+      orbitSpeed: 0,
       orbitalColor: 0x000000,
       textureResolutions: { surface: ['4k', '2k', '1k'] },
       textures: { surface: 'sun/sunSurface' },
     },
     mercury: {
-      radius: 0.383,
+      radius: 0.4,
       rotationSpeed: 0.003,
-      orbitalRadius: 58,
+      orbitSpeed: 0.04,
+      orbitalRadius: 20,
       orbitalColor: 0xaaaaaa,
       textureResolutions: {
         surface: ['8k', '4k', '2k', '1k'],
@@ -127,9 +129,10 @@ export const CELESTIAL_CONFIG = {
       },
     },
     venus: {
-      radius: 0.949,
+      radius: 0.9,
       rotationSpeed: -0.0001,
-      orbitalRadius: 108,
+      orbitSpeed: 0.015,
+      orbitalRadius: 28,
       orbitalColor: 0xffa500,
       textureResolutions: {
         surface: ['8k', '4k', '2k', '1k'],
@@ -143,9 +146,10 @@ export const CELESTIAL_CONFIG = {
       },
     },
     earth: {
-      radius: 1.0,
+      radius: 1,
       rotationSpeed: 0.0008,
-      orbitalRadius: 150,
+      orbitSpeed: 0.01,
+      orbitalRadius: 35,
       orbitalColor: 0x00bfff,
       textureResolutions: {
         surface: ['8k', '4k', '2k', '1k'],
@@ -164,9 +168,10 @@ export const CELESTIAL_CONFIG = {
       satellites: {
         moon: {
           type: 'satellite',
-          radius: 0.273,
+          radius: 0.27,
           rotationSpeed: 0.0002,
-          orbitalRadius: 3,
+          orbitSpeed: 0.1,
+          orbitalRadius: 2,
           orbitalColor: 0x999999,
           textureResolutions: {
             surface: ['8k', '4k', '2k', '1k'],
@@ -180,9 +185,10 @@ export const CELESTIAL_CONFIG = {
       },
     },
     mars: {
-      radius: 0.532,
+      radius: 0.6,
       rotationSpeed: 0.001,
-      orbitalRadius: 228,
+      orbitSpeed: 0.005,
+      orbitalRadius: 45,
       orbitalColor: 0xff4500,
       textureResolutions: {
         surface: ['8k', '4k', '2k', '1k'],
@@ -194,17 +200,19 @@ export const CELESTIAL_CONFIG = {
       },
     },
     jupiter: {
-      radius: 11.21,
+      radius: 3.5,
       rotationSpeed: 0.003,
-      orbitalRadius: 778,
+      orbitSpeed: 0.001,
+      orbitalRadius: 70,
       orbitalColor: 0xffc04d,
       textureResolutions: { surface: ['4k', '2k', '1k'] },
       textures: { surface: 'jupiter/jupiterSurface' },
     },
     saturn: {
-      radius: 9.45,
+      radius: 3,
       rotationSpeed: 0.0015,
-      orbitalRadius: 1430,
+      orbitSpeed: 0.0005,
+      orbitalRadius: 90,
       orbitalColor: 0xf5deb3,
       ring: {
         bodyName: 'saturn-ring',
@@ -218,17 +226,19 @@ export const CELESTIAL_CONFIG = {
       textures: { surface: 'saturn/saturnSurface' },
     },
     uranus: {
-      radius: 4.01,
+      radius: 2,
       rotationSpeed: 0.001,
-      orbitalRadius: 2870,
+      orbitSpeed: 0.0002,
+      orbitalRadius: 110,
       orbitalColor: 0x7fffd4,
       textureResolutions: { surface: ['2k', '1k'] },
       textures: { surface: 'uranus/uranusSurface' },
     },
     neptune: {
-      radius: 3.88,
+      radius: 1.8,
       rotationSpeed: 0.0012,
-      orbitalRadius: 4500,
+      orbitSpeed: 0.0001,
+      orbitalRadius: 130,
       orbitalColor: 0x4169e1,
       textureResolutions: { surface: ['2k', '1k'] },
       textures: { surface: 'neptune/neptuneSurface' },
