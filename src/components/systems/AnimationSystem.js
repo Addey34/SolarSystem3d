@@ -9,6 +9,23 @@ import * as THREE from 'three';
 import { FPSCounter } from '../../utils/FPSCounter.js';
 import Logger from '../../utils/Logger.js';
 
+// ============================================================================
+// CONSTANTES
+// ============================================================================
+
+/** Intervalle de mise à jour LOD (en frames) */
+const LOD_UPDATE_INTERVAL = 5;
+
+/** Distance maximale pour les mises à jour LOD */
+const LOD_MAX_DISTANCE = 100;
+
+/** Seuil de changement de distance pour déclencher un LOD update */
+const LOD_DISTANCE_THRESHOLD = 5;
+
+// ============================================================================
+// CLASSE PRINCIPALE
+// ============================================================================
+
 /**
  * Système central gérant la boucle d'animation et le rendu.
  * Utilise requestAnimationFrame avec limitation de FPS configurable.
@@ -16,170 +33,234 @@ import Logger from '../../utils/Logger.js';
 export class AnimationSystem {
   /**
    * Crée une nouvelle instance du système d'animation.
-   * @param {number} [targetFPS=60] - FPS cible pour la limitation de frame rate
+   * @param {number} [targetFPS=60] - FPS cible pour la limitation
    */
   constructor(targetFPS = 60) {
-    /** @type {THREE.Clock} Horloge Three.js pour calculer le delta time */
+    // Timing
     this.clock = new THREE.Clock();
+    this.targetFPS = targetFPS;
+    this.lastFrameTime = 0;
+    this.lodUpdateFrame = 0;
 
-    /** @type {Set<Object>} Ensemble des objets à mettre à jour chaque frame */
+    // État
+    this.isRunning = false;
+    this.animationFrame = null;
+
+    // Objets à mettre à jour
     this.updatables = new Set();
 
-    /** @type {FPSCounter} Compteur de FPS affiché à l'écran */
+    // Systèmes externes
+    this.tweenGroup = new TweenGroup();
     this.fpsCounter = new FPSCounter();
 
-    /** @type {number} FPS cible pour la limitation */
-    this.targetFPS = targetFPS;
-
-    /** @type {number} Timestamp de la dernière frame rendue */
-    this.lastFrameTime = 0;
-
-    /** @type {boolean} Indique si la boucle d'animation est active */
-    this.isRunning = false;
-
-    /** @type {TweenGroup} Groupe de tweens pour les animations de caméra */
-    this.tweenGroup = new TweenGroup();
-
-    // Vecteurs réutilisés pour éviter les allocations mémoire dans la boucle
-    /** @type {THREE.Vector3} Position de la caméra (réutilisé) */
+    // Vecteurs réutilisés (optimisation mémoire)
     this._cameraPos = new THREE.Vector3();
-
-    /** @type {THREE.Vector3} Position monde temporaire (réutilisé) */
-    this._worldPos = new THREE.Vector3();
+    this._sunWorldPos = new THREE.Vector3();
 
     Logger.info('[AnimationSystem] Instance created ✅');
   }
 
-  init({
-    scene,
-    camera,
-    renderer,
-    cameraSystem,
-    celestialBodies,
-    sceneSystem,
-  }) {
-    Logger.info('[AnimationSystem] Initializing...');
+  // ==========================================================================
+  // INITIALISATION
+  // ==========================================================================
+
+  /**
+   * Initialise le système avec les références nécessaires.
+   */
+  init({ scene, camera, renderer, cameraSystem, celestialBodies, sceneSystem }) {
     this.scene = scene;
     this.camera = camera;
     this.renderer = renderer;
     this.cameraSystem = cameraSystem;
     this.celestialBodies = celestialBodies;
     this.sceneSystem = sceneSystem;
-    this.lodUpdateFrame = 0;
 
-    // Passer le tweenGroup au CameraSystem (déjà initialisé dans SolarSystemApp)
+    // Partager le tweenGroup avec le système de caméra
     if (this.cameraSystem) {
       this.cameraSystem.tweenGroup = this.tweenGroup;
     }
 
     this.fpsCounter.init();
-    Logger.success('[AnimationSystem] Initialization complete');
+    Logger.success('[AnimationSystem] Initialized');
   }
 
+  // ==========================================================================
+  // BOUCLE D'ANIMATION
+  // ==========================================================================
+
+  /**
+   * Démarre la boucle d'animation.
+   */
   run() {
     if (this.isRunning) {
       Logger.warn('[AnimationSystem] Already running');
       return;
     }
+
     this.isRunning = true;
     this.clock.start();
     Logger.info('[AnimationSystem] Starting animation loop');
-    this.animate();
+    this._animate();
   }
 
-  animate() {
-    this.animationFrame = requestAnimationFrame(() => this.animate());
+  /**
+   * Boucle principale d'animation (requestAnimationFrame).
+   * @private
+   */
+  _animate() {
+    this.animationFrame = requestAnimationFrame(() => this._animate());
+
     const delta = this.clock.getDelta();
     const now = performance.now();
     const frameInterval = 1000 / this.targetFPS;
 
+    // Mise à jour des tweens
     this.tweenGroup.update(now);
 
+    // Limitation du frame rate
     if (now - this.lastFrameTime >= frameInterval) {
-      this.update(delta);
-      this.render();
+      this._update(delta);
+      this._render();
       this.fpsCounter.update(now);
       this.lastFrameTime = now;
     }
   }
 
-  update(delta) {
+  // ==========================================================================
+  // MISE À JOUR
+  // ==========================================================================
+
+  /**
+   * Met à jour tous les objets de la scène.
+   * @private
+   */
+  _update(delta) {
     if (!this.camera) {
-      Logger.warn('[AnimationSystem] Camera not defined in update');
+      Logger.warn('[AnimationSystem] Camera not defined');
       return;
     }
 
+    // Position du soleil pour les shaders de lumières nocturnes
+    const sunWorldPosition = this._getSunWorldPosition();
+
+    // Mise à jour des objets triés par distance (plus proche en premier)
+    this._updateObjects(delta, sunWorldPosition);
+
+    // Mise à jour du système de caméra
+    this.cameraSystem?.update?.(delta);
+
+    // Mise à jour LOD périodique
+    this._updateLOD();
+  }
+
+  /**
+   * Récupère la position mondiale du soleil.
+   * @private
+   * @returns {THREE.Vector3|null}
+   */
+  _getSunWorldPosition() {
+    const sunBody = this.celestialBodies?.sun;
+    if (!sunBody?.group) return null;
+
+    sunBody.group.getWorldPosition(this._sunWorldPos);
+    return this._sunWorldPos;
+  }
+
+  /**
+   * Met à jour tous les objets animés, triés par distance.
+   * @private
+   */
+  _updateObjects(delta, sunWorldPosition) {
     this._cameraPos.copy(this.camera.position);
+
+    // Tri par distance (plus proche = priorité)
     const sorted = Array.from(this.updatables).sort((a, b) => {
-      const distA =
-        a.group?.position.distanceToSquared(this._cameraPos) ?? Infinity;
-      const distB =
-        b.group?.position.distanceToSquared(this._cameraPos) ?? Infinity;
+      const distA = a.group?.position.distanceToSquared(this._cameraPos) ?? Infinity;
+      const distB = b.group?.position.distanceToSquared(this._cameraPos) ?? Infinity;
       return distA - distB;
     });
 
     for (const obj of sorted) {
       if (typeof obj.update === 'function') {
-        obj.update(delta, this._cameraPos);
-      } else {
-        Logger.warn(
-          '[AnimationSystem] Updatable object without update method',
-          obj
-        );
+        obj.update(delta, sunWorldPosition);
       }
     }
-    if (typeof this.cameraSystem?.update === 'function') {
-      this.cameraSystem.update(delta);
-    }
+  }
 
+  /**
+   * Met à jour le LOD des textures (tous les N frames).
+   * @private
+   */
+  _updateLOD() {
     this.lodUpdateFrame++;
-    if (this.lodUpdateFrame % 5 === 0) {
-      this.updateCelestialBodiesLOD();
-    }
-  }
+    if (this.lodUpdateFrame % LOD_UPDATE_INTERVAL !== 0) return;
 
-  updateCelestialBodiesLOD() {
-    if (!this.celestialBodies || Object.keys(this.celestialBodies).length === 0) {
-      return;
-    }
+    if (!this.celestialBodies) return;
 
-    for (const celestialBody of Object.values(this.celestialBodies)) {
-      if (
-        typeof celestialBody.updateLODTextures === 'function'
-        && celestialBody.group
-      ) {
-        celestialBody.updateLODTextures(this.camera, 100, 5);
+    for (const body of Object.values(this.celestialBodies)) {
+      if (typeof body.updateLODTextures === 'function' && body.group) {
+        body.updateLODTextures(this.camera, LOD_MAX_DISTANCE, LOD_DISTANCE_THRESHOLD);
       }
     }
   }
 
-  render() {
+  // ==========================================================================
+  // RENDU
+  // ==========================================================================
+
+  /**
+   * Effectue le rendu de la scène.
+   * @private
+   */
+  _render() {
     if (!this.scene || !this.camera || !this.renderer) {
-      Logger.warn(
-        '[AnimationSystem] Scene, camera or renderer missing in render()'
-      );
+      Logger.warn('[AnimationSystem] Missing scene/camera/renderer');
       return;
     }
     this.renderer.render(this.scene, this.camera);
   }
 
+  // ==========================================================================
+  // GESTION DES OBJETS
+  // ==========================================================================
+
+  /**
+   * Ajoute un objet à la liste des objets à mettre à jour.
+   * @param {Object} obj - Objet avec une méthode update()
+   */
   addUpdatable(obj) {
-    if (typeof obj.update === 'function') {
-      this.updatables.add(obj);
-      Logger.debug('[AnimationSystem] Updatable added', obj);
-    } else {
-      Logger.warn('[AnimationSystem] Ignored object (no update method)', obj);
+    if (typeof obj.update !== 'function') {
+      Logger.warn('[AnimationSystem] Object ignored (no update method)');
+      return;
     }
+    this.updatables.add(obj);
   }
 
+  /**
+   * Retire un objet de la liste des mises à jour.
+   * @param {Object} obj - Objet à retirer
+   */
+  removeUpdatable(obj) {
+    this.updatables.delete(obj);
+  }
+
+  // ==========================================================================
+  // NETTOYAGE
+  // ==========================================================================
+
+  /**
+   * Arrête l'animation et libère les ressources.
+   */
   dispose() {
     if (this.animationFrame) {
       cancelAnimationFrame(this.animationFrame);
       this.animationFrame = null;
     }
+
     this.updatables.clear();
     this.fpsCounter.dispose();
     this.isRunning = false;
-    Logger.warn('[AnimationSystem] Animation stopped and resources cleared');
+
+    Logger.warn('[AnimationSystem] Disposed');
   }
 }

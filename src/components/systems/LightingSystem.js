@@ -1,6 +1,6 @@
 /**
  * @fileoverview Système d'éclairage de la scène.
- * Configure l'éclairage ambiant et la lumière ponctuelle du soleil.
+ * Configure l'éclairage ambiant et la lumière ponctuelle du soleil avec ombres.
  */
 
 import * as THREE from 'three';
@@ -10,6 +10,7 @@ import Logger from '../../utils/Logger.js';
 /**
  * Système gérant l'éclairage de la scène 3D.
  * Comprend une lumière ambiante globale et une lumière ponctuelle au centre (soleil).
+ * Supporte le shadow mapping pour les ombres projetées.
  */
 export class LightingSystem {
   /**
@@ -37,9 +38,10 @@ export class LightingSystem {
     }
 
     this.scene = scene;
+    const shadowConfig = LIGHTING_SETTINGS.sun.shadow;
 
     // Lumière ambiante : éclaire uniformément tous les objets
-    // Permet de voir les faces non éclairées par le soleil
+    // Très faible pour un bon contraste jour/nuit
     this.lights.ambient = new THREE.AmbientLight(
       LIGHTING_SETTINGS.ambient.color,
       LIGHTING_SETTINGS.ambient.intensity
@@ -56,6 +58,20 @@ export class LightingSystem {
       LIGHTING_SETTINGS.sun.decay
     );
     this.lights.sun.position.set(0, 0, 0);
+
+    // Configuration des ombres pour la lumière du soleil
+    if (shadowConfig?.enabled) {
+      this.lights.sun.castShadow = true;
+      this.lights.sun.shadow.mapSize.width = shadowConfig.mapSize;
+      this.lights.sun.shadow.mapSize.height = shadowConfig.mapSize;
+      this.lights.sun.shadow.bias = shadowConfig.bias;
+      this.lights.sun.shadow.normalBias = shadowConfig.normalBias ?? 0;
+      this.lights.sun.shadow.radius = shadowConfig.radius;
+      this.lights.sun.shadow.camera.near = shadowConfig.near;
+      this.lights.sun.shadow.camera.far = shadowConfig.far;
+      Logger.success(`[LightingSystem] Shadow mapping enabled (${shadowConfig.mapSize}px)`);
+    }
+
     this.scene.add(this.lights.sun);
     Logger.success('[LightingSystem] Sun light added at (0,0,0)');
 
