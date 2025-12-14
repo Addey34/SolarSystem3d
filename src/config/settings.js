@@ -7,6 +7,24 @@
 import * as THREE from 'three';
 
 // ============================================================================
+// DÉTECTION MOBILE
+// ============================================================================
+
+/**
+ * Détecte si l'appareil est un mobile/tablette.
+ * @returns {boolean}
+ */
+const isMobile = () => {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  ) || window.innerWidth < 768;
+};
+
+/** @type {boolean} Cache de la détection mobile */
+export const IS_MOBILE = isMobile();
+
+// ============================================================================
 // CONFIGURATION DU LOGGER
 // ============================================================================
 
@@ -34,19 +52,26 @@ export const APP_SETTINGS = {
   debug: false,
   performance: {
     targetFPS: 60,
-    maxAnisotropy: 16,
-    // Configuration LOD : distance (unités) -> qualité de texture
-    textureQuality: {
-      ultra: { segments: 256, distance: 10, quality: '8k' }, // Très proche
-      high: { segments: 128, distance: 20, quality: '4k' }, // Proche
-      medium: { segments: 64, distance: 40, quality: '2k' }, // Moyen
-      low: { segments: 32, distance: 80, quality: '1k' }, // Loin
-    },
+    maxAnisotropy: IS_MOBILE ? 8 : 16,
+    textureQuality: IS_MOBILE
+      ? {
+          // Mobile : max 4K, pas de 8K
+          ultra: { segments: 128, distance: 10, quality: '4k' },
+          high: { segments: 64, distance: 20, quality: '2k' },
+          medium: { segments: 64, distance: 40, quality: '2k' },
+          low: { segments: 32, distance: 80, quality: '1k' },
+        }
+      : {
+          ultra: { segments: 256, distance: 10, quality: '8k' },
+          high: { segments: 128, distance: 20, quality: '4k' },
+          medium: { segments: 64, distance: 40, quality: '2k' },
+          low: { segments: 32, distance: 80, quality: '1k' },
+        },
   },
 };
 
 export const RENDER_SETTINGS = {
-  antialias: true,
+  antialias: !IS_MOBILE,
   powerPreference: 'high-performance',
   shadowMap: {
     enabled: true,
@@ -56,7 +81,7 @@ export const RENDER_SETTINGS = {
   toneMapping: THREE.ACESFilmicToneMapping,
   toneMappingExposure: 1.0,
   physicallyCorrectLights: true,
-  maxPixelRatio: 1.5,
+  maxPixelRatio: IS_MOBILE ? 1.5 : 2,
 };
 
 export const CAMERA_SETTINGS = {
@@ -95,25 +120,22 @@ export const CAMERA_CONTROLS_SETTINGS = {
 };
 
 export const LIGHTING_SETTINGS = {
-  // Lumière ambiante très faible - juste pour voir les étoiles et ombres légères
   ambient: {
     color: 0x404040,
-    intensity: 0.05, // Très faible pour un meilleur contraste jour/nuit
+    intensity: 0.05,
   },
-  // Lumière du soleil - source principale
   sun: {
-    color: 0xfffaf0, // Légèrement chaud
+    color: 0xfffaf0,
     intensity: 2.5,
-    distance: 0, // 0 = infini (pas de diminution avec la distance)
-    decay: 0, // 0 = pas de decay (lumière constante)
+    distance: 0,
+    decay: 0,
     position: new THREE.Vector3(0, 0, 0),
-    // Configuration des ombres haute résolution
     shadow: {
       enabled: true,
-      mapSize: 4096, // Haute résolution (4K) pour des ombres nettes
-      bias: -0.00005, // Réduit pour moins d'artefacts
-      normalBias: 0.02, // Aide à éviter l'acné des ombres
-      radius: 1.5, // Léger blur pour des bords plus doux
+      mapSize: IS_MOBILE ? 2048 : 4096,
+      bias: -0.00005,
+      normalBias: 0.02,
+      radius: 1.5,
       near: 0.1,
       far: 1000,
     },
@@ -126,12 +148,8 @@ export const LIGHTING_SETTINGS = {
  */
 export const SHADER_SETTINGS = {
   nightLights: {
-    // Intensité des lumières nocturnes (0-2, peut dépasser 1 pour plus de visibilité)
     intensity: 1.5,
-    // Seuil de fin de transition (sunLight au-dessus = jour, pas de lumières)
-    // 0.0 = terminateur exact, négatif = lumières commencent plus tôt côté nuit
     threshold: -0.1,
-    // Largeur de la zone de transition (0.1 = étroite, 0.5 = large)
     smoothness: 0.4,
   },
 };
