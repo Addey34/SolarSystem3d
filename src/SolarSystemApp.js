@@ -1,3 +1,13 @@
+/**
+ * @fileoverview Classe principale orchestrant l'ensemble du système solaire 3D.
+ * Coordonne l'initialisation et la communication entre tous les sous-systèmes :
+ * - TextureSystem : Gestion et chargement des textures avec LOD
+ * - SceneSystem : Configuration de la scène Three.js, caméra et renderer
+ * - LightingSystem : Éclairage de la scène (soleil + ambiant)
+ * - CameraSystem : Contrôles de caméra et navigation entre planètes
+ * - AnimationSystem : Boucle de rendu et mise à jour des objets
+ */
+
 import CelestialObjectFactory from './components/celestial/CelestialObjectFactory.js';
 import { AnimationSystem } from './components/systems/AnimationSystem.js';
 import { CameraSystem } from './components/systems/CameraSystem.js';
@@ -11,20 +21,41 @@ import {
 } from './config/settings.js';
 import Logger from './utils/Logger.js';
 
+/**
+ * Classe principale de l'application Solar System.
+ * Implémente le pattern Facade pour simplifier l'interaction avec les sous-systèmes.
+ */
 export class SolarSystemApp {
+  /**
+   * Crée une nouvelle instance de l'application.
+   * Initialise les conteneurs pour les systèmes mais ne les démarre pas encore.
+   */
   constructor() {
     Logger.info('[SolarSystemApp] Initializing core containers...');
+
+    /** @type {Object|null} Cache des corps célestes pour éviter les recréations */
     this.bodyCache = null;
+
+    /** @type {Object} État interne de l'application */
     this.state = {
+      /** @type {boolean} Indique si l'application est initialisée */
       initialized: false,
+      /** @type {Object|null} Référence aux corps célestes créés */
       bodies: null,
     };
+
+    /** @type {Object} Conteneur des sous-systèmes */
     this.systems = {
+      /** @type {TextureSystem|null} Système de gestion des textures */
       texture: null,
+      /** @type {SceneSystem|null} Système de gestion de la scène */
       scene: null,
+      /** @type {LightingSystem} Système d'éclairage */
       lighting: new LightingSystem(),
+      /** @type {CameraSystem} Système de contrôle de la caméra */
       camera: new CameraSystem(),
-      animation: new AnimationSystem(),
+      /** @type {AnimationSystem} Système d'animation et boucle de rendu */
+      animation: new AnimationSystem(APP_SETTINGS.performance.targetFPS),
     };
   }
 

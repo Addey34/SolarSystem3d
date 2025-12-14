@@ -1,18 +1,46 @@
+/**
+ * @fileoverview Système de gestion de la scène Three.js.
+ * Configure la scène, la caméra, le renderer, et organise les corps célestes
+ * dans une hiérarchie de groupes orbitaux.
+ */
+
 import * as THREE from 'three';
 import { CAMERA_SETTINGS, RENDER_SETTINGS } from '../../config/settings.js';
 import Logger from '../../utils/Logger.js';
 import { createStarfield } from '../celestial/Starfield.js';
 
+/**
+ * Système central gérant la scène Three.js.
+ * Responsable de la configuration du renderer, de la caméra,
+ * et de l'organisation hiérarchique des objets dans la scène.
+ */
 export class SceneSystem {
+  /**
+   * Crée une nouvelle instance du système de scène.
+   * @param {Object} config - Configuration des corps célestes (CELESTIAL_CONFIG)
+   * @param {TextureSystem} textureSystem - Système de gestion des textures
+   */
   constructor(config, textureSystem) {
+    /** @type {Object} Configuration des corps célestes */
     this.config = config;
+
+    /** @type {TextureSystem} Référence au système de textures */
     this.textureSystem = textureSystem;
+
+    /** @type {THREE.Scene} La scène Three.js principale */
     this.scene = new THREE.Scene();
+
+    /** @type {Object} Groupes orbitaux pour chaque corps céleste */
     this.orbitGroups = {};
+
+    /** @type {Function[]} Fonctions de nettoyage à appeler lors du dispose */
     this.disposeFunctions = [];
+
+    /** @type {THREE.Object3D} Objet cible pour le suivi de la caméra */
     this.targetObject = new THREE.Object3D();
     this.targetObject.name = 'mainTarget';
     this.scene.add(this.targetObject);
+
     Logger.info('[SceneSystem] Scene instance created ✅');
   }
 
@@ -127,7 +155,7 @@ export class SceneSystem {
     Logger.success('[SceneSystem] Celestial bodies added to scene');
   }
 
-  createOrbitVisual(radius = 0, color = 0xffffff) {
+  createOrbitVisual(radius = 0, color) {
     const segments = 128;
     const points = Array.from({ length: segments + 1 }, (_, i) => {
       const theta = (i / segments) * Math.PI * 2;
@@ -150,7 +178,6 @@ export class SceneSystem {
 
   updateCameraTarget(position) {
     this.targetObject.position.copy(position);
-    this.camera.lookAt(this.targetObject.position);
   }
 
   getWorldPosition(bodyName, celestialBodies) {

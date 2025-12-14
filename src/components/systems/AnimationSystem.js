@@ -1,17 +1,52 @@
+/**
+ * @fileoverview Système d'animation gérant la boucle de rendu principale.
+ * Coordonne les mises à jour de tous les objets animés, les tweens,
+ * le LOD des textures et le rendu de la scène.
+ */
+
 import { Group as TweenGroup } from '@tweenjs/tween.js';
 import * as THREE from 'three';
 import { FPSCounter } from '../../utils/FPSCounter.js';
 import Logger from '../../utils/Logger.js';
 
+/**
+ * Système central gérant la boucle d'animation et le rendu.
+ * Utilise requestAnimationFrame avec limitation de FPS configurable.
+ */
 export class AnimationSystem {
+  /**
+   * Crée une nouvelle instance du système d'animation.
+   * @param {number} [targetFPS=60] - FPS cible pour la limitation de frame rate
+   */
   constructor(targetFPS = 60) {
+    /** @type {THREE.Clock} Horloge Three.js pour calculer le delta time */
     this.clock = new THREE.Clock();
+
+    /** @type {Set<Object>} Ensemble des objets à mettre à jour chaque frame */
     this.updatables = new Set();
+
+    /** @type {FPSCounter} Compteur de FPS affiché à l'écran */
     this.fpsCounter = new FPSCounter();
+
+    /** @type {number} FPS cible pour la limitation */
     this.targetFPS = targetFPS;
+
+    /** @type {number} Timestamp de la dernière frame rendue */
     this.lastFrameTime = 0;
+
+    /** @type {boolean} Indique si la boucle d'animation est active */
     this.isRunning = false;
+
+    /** @type {TweenGroup} Groupe de tweens pour les animations de caméra */
     this.tweenGroup = new TweenGroup();
+
+    // Vecteurs réutilisés pour éviter les allocations mémoire dans la boucle
+    /** @type {THREE.Vector3} Position de la caméra (réutilisé) */
+    this._cameraPos = new THREE.Vector3();
+
+    /** @type {THREE.Vector3} Position monde temporaire (réutilisé) */
+    this._worldPos = new THREE.Vector3();
+
     Logger.info('[AnimationSystem] Instance created ✅');
   }
 
@@ -28,16 +63,13 @@ export class AnimationSystem {
     this.camera = camera;
     this.renderer = renderer;
     this.cameraSystem = cameraSystem;
-    this.tweenGroup = new TweenGroup();
-    if (this.cameraSystem?.init) {
-      this.cameraSystem.init(
-        camera,
-        renderer,
-        celestialBodies,
-        sceneSystem,
-        this.tweenGroup
-      );
-      Logger.success('[AnimationSystem] CameraSystem initialized');
+    this.celestialBodies = celestialBodies;
+    this.sceneSystem = sceneSystem;
+    this.lodUpdateFrame = 0;
+
+    // Passer le tweenGroup au CameraSystem (déjà initialisé dans SolarSystemApp)
+    if (this.cameraSystem) {
+      this.cameraSystem.tweenGroup = this.tweenGroup;
     }
 
     this.fpsCounter.init();
@@ -66,7 +98,7 @@ export class AnimationSystem {
     if (now - this.lastFrameTime >= frameInterval) {
       this.update(delta);
       this.render();
-      this.fpsCounter.update(now, this.renderer);
+      this.fpsCounter.update(now);
       this.lastFrameTime = now;
     }
   }
@@ -77,16 +109,18 @@ export class AnimationSystem {
       return;
     }
 
-    const cameraPos = this.camera.position.clone();
+    this._cameraPos.copy(this.camera.position);
     const sorted = Array.from(this.updatables).sort((a, b) => {
-      const distA = a.group?.position.distanceToSquared(cameraPos) ?? Infinity;
-      const distB = b.group?.position.distanceToSquared(cameraPos) ?? Infinity;
+      const distA =
+        a.group?.position.distanceToSquared(this._cameraPos) ?? Infinity;
+      const distB =
+        b.group?.position.distanceToSquared(this._cameraPos) ?? Infinity;
       return distA - distB;
     });
 
     for (const obj of sorted) {
       if (typeof obj.update === 'function') {
-        obj.update(delta, cameraPos);
+        obj.update(delta, this._cameraPos);
       } else {
         Logger.warn(
           '[AnimationSystem] Updatable object without update method',
@@ -96,6 +130,26 @@ export class AnimationSystem {
     }
     if (typeof this.cameraSystem?.update === 'function') {
       this.cameraSystem.update(delta);
+    }
+
+    this.lodUpdateFrame++;
+    if (this.lodUpdateFrame % 5 === 0) {
+      this.updateCelestialBodiesLOD();
+    }
+  }
+
+  updateCelestialBodiesLOD() {
+    if (!this.celestialBodies || Object.keys(this.celestialBodies).length === 0) {
+      return;
+    }
+
+    for (const celestialBody of Object.values(this.celestialBodies)) {
+      if (
+        typeof celestialBody.updateLODTextures === 'function'
+        && celestialBody.group
+      ) {
+        celestialBody.updateLODTextures(this.camera, 100, 5);
+      }
     }
   }
 

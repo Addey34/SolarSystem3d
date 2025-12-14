@@ -1,15 +1,46 @@
+/**
+ * @fileoverview Configuration centralisée de l'application Solar System 3D.
+ * Regroupe tous les paramètres : performance, rendu, caméra, éclairage,
+ * textures et définition des corps célestes.
+ */
+
 import * as THREE from 'three';
 
+// ============================================================================
+// CONFIGURATION DU LOGGER
+// ============================================================================
+
+/**
+ * Paramètres du système de logging.
+ * @property {boolean} debug - Active/désactive les logs de debug
+ */
+export const LOGGER_SETTINGS = {
+  debug: true,
+};
+
+// ============================================================================
+// CONFIGURATION DE L'APPLICATION
+// ============================================================================
+
+/**
+ * Paramètres généraux de l'application.
+ * @property {boolean} debug - Mode debug global
+ * @property {Object} performance - Paramètres de performance
+ * @property {number} performance.targetFPS - FPS cible (60)
+ * @property {number} performance.maxAnisotropy - Filtrage anisotropique max
+ * @property {Object} performance.textureQuality - Niveaux de qualité LOD
+ */
 export const APP_SETTINGS = {
   debug: true,
   performance: {
     targetFPS: 60,
     maxAnisotropy: 16,
+    // Configuration LOD : distance (unités) -> qualité de texture
     textureQuality: {
-      ultra: { segments: 256, distance: 0, quality: '8k' },
-      high: { segments: 128, distance: 20, quality: '4k' },
-      medium: { segments: 64, distance: 40, quality: '2k' },
-      low: { segments: 32, distance: 60, quality: '1k' },
+      ultra: { segments: 256, distance: 10, quality: '8k' },  // Très proche
+      high: { segments: 128, distance: 20, quality: '4k' },   // Proche
+      medium: { segments: 64, distance: 40, quality: '2k' },  // Moyen
+      low: { segments: 32, distance: 80, quality: '1k' },     // Loin
     },
   },
 };
@@ -33,13 +64,6 @@ export const CAMERA_SETTINGS = {
   near: 0.1,
   far: 20000,
   initialPosition: new THREE.Vector3(0, 50, 0),
-  controls: {
-    damping: 0.25,
-    minDistance: 0,
-    maxDistance: 100,
-    maxPolarAngle: Math.PI,
-    minPolarAngle: 0,
-  },
   bodyDistances: {
     sun: 50,
     mercury: 2,
@@ -52,6 +76,22 @@ export const CAMERA_SETTINGS = {
     uranus: 10,
     neptune: 10,
   },
+};
+
+export const CAMERA_CONTROLS_SETTINGS = {
+  smoothness: 0.15,
+  minDistanceMultiplier: 2,
+  damping: 0.08,
+  minDistance: 0.5,
+  maxDistance: 500,
+  maxPolarAngle: Math.PI,
+  minPolarAngle: 0,
+  screenSpacePanning: false,
+  enablePan: false,
+  enableZoom: true,
+  enableRotate: true,
+  rotateSpeed: 0.2,
+  zoomSpeed: 0.2,
 };
 
 export const LIGHTING_SETTINGS = {

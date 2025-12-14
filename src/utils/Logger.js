@@ -1,13 +1,20 @@
 /**
- * Professional Logger utility
- * Usage:
- *   import Logger from './utils/Logger.js';
- *   Logger.info("App started");
+ * @fileoverview Utilitaire de logging avec couleurs et timestamps.
+ * Fournit une interface unifiée pour les logs avec différents niveaux
+ * (info, debug, warn, error, success) et formatage cohérent.
  */
 
-class Logger {
-  static DEBUG = false; // toggle logs globally
+import { LOGGER_SETTINGS } from '../config/settings.js';
 
+/**
+ * Classe utilitaire statique pour le logging.
+ * Tous les logs incluent un timestamp et sont colorés selon leur niveau.
+ */
+class Logger {
+  /** @type {boolean} Active/désactive les logs (sauf error qui est toujours affiché) */
+  static DEBUG = LOGGER_SETTINGS.debug;
+
+  /** @type {Object} Codes de couleur ANSI pour le terminal */
   static colors = {
     reset: '\x1b[0m',
     gray: '\x1b[90m',

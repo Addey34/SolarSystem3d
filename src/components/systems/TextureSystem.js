@@ -1,29 +1,60 @@
+/**
+ * @fileoverview Système de gestion des textures avec support LOD (Level of Detail).
+ * Implémente le pattern Singleton pour garantir une seule instance.
+ * Gère le chargement asynchrone, le cache et la sélection de qualité selon la distance.
+ */
+
 import * as THREE from 'three';
 import Logger from '../../utils/Logger.js';
 
+/**
+ * Système de gestion des textures avec LOD dynamique.
+ * Singleton assurant un cache unique pour toutes les textures.
+ */
 export class TextureSystem {
+  /** @type {TextureSystem|undefined} Instance singleton privée */
   static #instance;
 
-  // Singleton
+  /**
+   * Récupère l'instance singleton du système de textures.
+   * @param {Object} config - Configuration (utilisée uniquement à la première création)
+   * @returns {TextureSystem} L'instance unique
+   */
   static getInstance(config) {
     if (!TextureSystem.#instance) {
       TextureSystem.#instance = new TextureSystem(config);
-    } else {
     }
     return TextureSystem.#instance;
   }
 
-  // Constructor
+  /**
+   * Constructeur privé (utiliser getInstance à la place).
+   * @param {Object} config - Configuration des textures et des corps célestes
+   */
   constructor(config) {
+    // Protection contre les instanciations multiples
     if (TextureSystem.#instance) {
       return TextureSystem.#instance;
     }
+
+    /** @type {THREE.TextureLoader} Chargeur de textures Three.js */
     this.textureLoader = new THREE.TextureLoader();
+
+    /** @type {Object} Configuration complète */
     this.config = config;
+
+    /** @type {string} Chemin de base pour les textures */
     this.basePath = config.basePath;
+
+    /** @type {Object} Paramètres par défaut appliqués aux textures */
     this.defaultSettings = config.defaultSettings;
+
+    /** @type {Map<string, THREE.Texture>} Cache des textures chargées */
     this.cache = new Map();
+
+    /** @type {Map<string, Promise>} Promesses de chargement en cours */
     this.loadingPromises = new Map();
+
     Logger.info('[TextureSystem] Instance created ✅');
   }
 
@@ -140,27 +171,26 @@ export class TextureSystem {
   }
 
   chooseQualityBasedOnDistance(distance, resolutions) {
-    const perfQualities = this.config.textureQuality || {
-      ultra: { distance: 0, quality: '8k' },
-      high: { distance: 20, quality: '4k' },
-      medium: { distance: 40, quality: '2k' },
-      low: { distance: 60, quality: '1k' },
-    };
+    const perfQualities = this.config.performance?.textureQuality;
+
     let chosenQuality = resolutions[resolutions.length - 1];
-    const sortedDistances = Object.values(perfQualities)
-      .map((v) => v.distance)
-      .sort((a, b) => a - b);
-    for (const distLimit of sortedDistances) {
-      if (distance <= distLimit) {
-        const qualityMatch = Object.keys(perfQualities).find(
-          (key) => perfQualities[key].distance === distLimit
-        );
-        chosenQuality = resolutions.includes(qualityMatch)
-          ? qualityMatch
-          : resolutions.find((q) => perfQualities[q]?.distance <= distLimit) ||
-            chosenQuality;
+
+    const qualitiesArray = Object.entries(perfQualities).sort(
+      (a, b) => a[1].distance - b[1].distance
+    );
+
+    for (const [qualityName, qualityConfig] of qualitiesArray) {
+      if (
+        distance <= qualityConfig.distance &&
+        resolutions.includes(qualityConfig.quality)
+      ) {
+        chosenQuality = qualityConfig.quality;
         break;
       }
+    }
+
+    if (!resolutions.includes(chosenQuality)) {
+      chosenQuality = resolutions[resolutions.length - 1];
     }
 
     return chosenQuality;
