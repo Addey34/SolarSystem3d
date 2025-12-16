@@ -96,6 +96,64 @@ body {
   transition: all 0.3s ease;
 }
 
+/* ============================================================================
+   CONTRÔLES DE VITESSE
+   ============================================================================ */
+
+.speed-controls {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.75rem;
+  z-index: 100;
+}
+
+.speed-button {
+  width: 3.5rem;
+  height: 3.5rem;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: bold;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.speed-button:hover {
+  background: rgba(50, 50, 50, 0.8);
+  transform: scale(1.1);
+}
+
+.speed-button.active {
+  background: rgba(100, 150, 255, 0.7);
+  border-color: white;
+}
+
+.speed-button.paused {
+  background: rgba(255, 100, 100, 0.7);
+}
+
+@media (max-width: 640px) {
+  .speed-controls {
+    bottom: 1rem;
+    gap: 0.5rem;
+  }
+
+  .speed-button {
+    width: 3rem;
+    height: 3rem;
+    font-size: 1rem;
+  }
+}
+
 @media (max-width: 640px) {
   .controls {
     flex-wrap: wrap;

@@ -44,7 +44,9 @@ export class AnimationSystem {
 
     // État
     this.isRunning = false;
+    this.isPaused = false;
     this.animationFrame = null;
+    this.timeScale = 1; // Multiplicateur de vitesse (1x, 2x, 3x)
 
     // Objets à mettre à jour
     this.updatables = new Set();
@@ -110,15 +112,17 @@ export class AnimationSystem {
   _animate() {
     this.animationFrame = requestAnimationFrame(() => this._animate());
 
-    const delta = this.clock.getDelta();
+    const rawDelta = this.clock.getDelta();
     const now = performance.now();
     const frameInterval = 1000 / this.targetFPS;
 
-    // Mise à jour des tweens
+    // Mise à jour des tweens (toujours actif même en pause)
     this.tweenGroup.update(now);
 
     // Limitation du frame rate
     if (now - this.lastFrameTime >= frameInterval) {
+      // Appliquer le timeScale et la pause
+      const delta = this.isPaused ? 0 : rawDelta * this.timeScale;
       this._update(delta);
       this._render();
       this.fpsCounter.update(now);
@@ -242,6 +246,53 @@ export class AnimationSystem {
    */
   removeUpdatable(obj) {
     this.updatables.delete(obj);
+  }
+
+  // ==========================================================================
+  // CONTRÔLES DE VITESSE
+  // ==========================================================================
+
+  /**
+   * Met en pause l'animation des objets.
+   */
+  pause() {
+    this.isPaused = true;
+    Logger.info('[AnimationSystem] Paused');
+  }
+
+  /**
+   * Reprend l'animation des objets.
+   */
+  resume() {
+    this.isPaused = false;
+    Logger.info('[AnimationSystem] Resumed');
+  }
+
+  /**
+   * Bascule entre pause et lecture.
+   * @returns {boolean} - Nouvel état (true = en pause)
+   */
+  togglePause() {
+    this.isPaused = !this.isPaused;
+    Logger.info(`[AnimationSystem] ${this.isPaused ? 'Paused' : 'Resumed'}`);
+    return this.isPaused;
+  }
+
+  /**
+   * Définit le multiplicateur de vitesse.
+   * @param {number} scale - Multiplicateur (1, 2, 3, etc.)
+   */
+  setTimeScale(scale) {
+    this.timeScale = scale;
+    Logger.info(`[AnimationSystem] Time scale set to ${scale}x`);
+  }
+
+  /**
+   * Récupère le multiplicateur de vitesse actuel.
+   * @returns {number}
+   */
+  getTimeScale() {
+    return this.timeScale;
   }
 
   // ==========================================================================

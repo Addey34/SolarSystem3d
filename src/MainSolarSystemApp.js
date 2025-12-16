@@ -14,6 +14,15 @@ import Logger from './utils/Logger.js';
 /** @type {HTMLButtonElement} Bouton pour activer/désactiver le mode plein écran */
 const fullscreenBtn = document.getElementById('fullscreen-btn');
 
+/** @type {HTMLButtonElement} Bouton play/pause */
+const playPauseBtn = document.getElementById('play-pause-btn');
+
+/** @type {HTMLButtonElement} Bouton vitesse x2 */
+const speed3xBtn = document.getElementById('speed-3x-btn');
+
+/** @type {HTMLButtonElement} Bouton vitesse x5 */
+const speed5xBtn = document.getElementById('speed-5x-btn');
+
 /** @type {HTMLElement} Barre de progression du chargement */
 const progressBar = document.getElementById('load-progress');
 
@@ -67,6 +76,50 @@ function updateProgress(percent, message) {
 function hideLoader() {
   loader.style.opacity = '0';
   setTimeout(() => (loader.style.display = 'none'), 500);
+}
+
+// ============================================================================
+// CONTRÔLES DE VITESSE D'ANIMATION
+// ============================================================================
+
+/**
+ * Configure les boutons de contrôle de vitesse de l'animation.
+ * @param {AnimationSystem} animationSystem - Instance du système d'animation
+ */
+function setupSpeedControls(animationSystem) {
+  Logger.info('Binding speed control events...');
+
+  // Bouton Play/Pause
+  playPauseBtn.addEventListener('click', () => {
+    const isPaused = animationSystem.togglePause();
+    playPauseBtn.textContent = isPaused ? '▶' : '⏸';
+    playPauseBtn.classList.toggle('paused', isPaused);
+    Logger.info(`Animation ${isPaused ? 'paused' : 'resumed'}`);
+  });
+
+  // Bouton x3
+  speed3xBtn.addEventListener('click', () => {
+    const currentScale = animationSystem.getTimeScale();
+    const newScale = currentScale === 3 ? 1 : 3;
+    animationSystem.setTimeScale(newScale);
+
+    // Mise à jour de l'état visuel
+    speed3xBtn.classList.toggle('active', newScale === 3);
+    speed5xBtn.classList.remove('active');
+    Logger.info(`Speed set to ${newScale}x`);
+  });
+
+  // Bouton x5
+  speed5xBtn.addEventListener('click', () => {
+    const currentScale = animationSystem.getTimeScale();
+    const newScale = currentScale === 5 ? 1 : 5;
+    animationSystem.setTimeScale(newScale);
+
+    // Mise à jour de l'état visuel
+    speed5xBtn.classList.toggle('active', newScale === 5);
+    speed3xBtn.classList.remove('active');
+    Logger.info(`Speed set to ${newScale}x`);
+  });
 }
 
 // ============================================================================
@@ -137,11 +190,13 @@ function showError(error) {
 
     const app = new SolarSystemApp();
     Logger.debug('Initializing SolarSystemApp...');
-    const { cameraSystem } = await app.init(updateProgress);
+    const { cameraSystem, animationSystem } = await app.init(updateProgress);
 
     if (!cameraSystem) throw new Error('CameraSystem unavailable');
+    if (!animationSystem) throw new Error('AnimationSystem unavailable');
 
     await setupPlanetControls(cameraSystem);
+    setupSpeedControls(animationSystem);
 
     Logger.success('Application fully loaded');
     hideLoader();
