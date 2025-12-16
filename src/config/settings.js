@@ -182,28 +182,52 @@ export const TEXTURE_SETTINGS = {
 
 export const CELESTIAL_CONFIG = {
   bodies: {
+    // ========================================================================
+    // CONFIGURATION DES CORPS CÉLESTES
+    // ========================================================================
+    // ÉCHELLE PÉDAGOGIQUE (non réaliste mais proportionnelle)
+    //
+    // RÉFÉRENCE : Terre
+    //   - Rayon      : 1 (unité de base)
+    //   - Rotation   : 0.3 (période de 24h)
+    //   - Orbite     : 0.05 (période de 365 jours) - accéléré x5 pour visibilité
+    //   - Distance   : 35 (orbitalRadius)
+    //
+    // FORMULES UTILISÉES :
+    //   - rotationSpeed = 0.3 × (24 / période_rotation_heures)
+    //   - orbitSpeed    = 0.05 × (365 / période_orbitale_jours)
+    //
+    // PARTICULARITÉS :
+    //   - Vénus : rotation rétrograde (valeur négative)
+    //   - Lune  : rotation synchrone (rotationSpeed = orbitSpeed)
+    //   - Jupiter/Saturne : rotation très rapide (~10h)
+    // ========================================================================
+
     stars: {
       radius: 0,
       rotationSpeed: 0,
       orbitalRadius: 0,
+      orbitSpeed: 0,
       orbitalColor: 0x000000,
       textureResolutions: { surface: ['8k'] },
       textures: { surface: 'stars/starsSurface' },
     },
+
     sun: {
-      radius: 10,
-      rotationSpeed: 0.001,
+      radius: 10, // Réel: 109× Terre (réduit pour l'échelle)
+      rotationSpeed: 0.012, // Période: 25 jours
       orbitalRadius: 0,
       orbitSpeed: 0,
       orbitalColor: 0x000000,
       textureResolutions: { surface: ['4k', '2k', '1k'] },
       textures: { surface: 'sun/sunSurface' },
     },
+
     mercury: {
-      radius: 0.4,
-      rotationSpeed: 0.003,
-      orbitSpeed: 0.04,
-      orbitalRadius: 20,
+      radius: 0.38, // Réel: 0.38× Terre
+      rotationSpeed: 0.005, // Période: 59 jours (très lent)
+      orbitSpeed: 0.205, // Période: 88 jours (le plus rapide)
+      orbitalRadius: 18,
       orbitalColor: 0xaaaaaa,
       textureResolutions: {
         surface: ['8k', '4k', '2k', '1k'],
@@ -214,11 +238,12 @@ export const CELESTIAL_CONFIG = {
         bump: 'mercury/mercuryBump',
       },
     },
+
     venus: {
-      radius: 0.9,
-      rotationSpeed: -0.0001,
-      orbitSpeed: 0.015,
-      orbitalRadius: 28,
+      radius: 0.95, // Réel: 0.95× Terre
+      rotationSpeed: -0.0012, // Période: 243 jours, RÉTROGRADE (négatif)
+      orbitSpeed: 0.08, // Période: 225 jours
+      orbitalRadius: 25,
       orbitalColor: 0xffa500,
       textureResolutions: {
         surface: ['8k', '4k', '2k', '1k'],
@@ -231,10 +256,11 @@ export const CELESTIAL_CONFIG = {
         bump: 'venus/venusBump',
       },
     },
+
     earth: {
-      radius: 1,
-      rotationSpeed: 0.0008,
-      orbitSpeed: 0.01,
+      radius: 1, // RÉFÉRENCE
+      rotationSpeed: 0.3, // RÉFÉRENCE - Période: 24h
+      orbitSpeed: 0.05, // RÉFÉRENCE - Période: 365 jours (accéléré x5)
       orbitalRadius: 35,
       orbitalColor: 0x00bfff,
       textureResolutions: {
@@ -254,10 +280,10 @@ export const CELESTIAL_CONFIG = {
       satellites: {
         moon: {
           type: 'satellite',
-          radius: 0.27,
-          rotationSpeed: 0.0002,
-          orbitSpeed: 0.1,
-          orbitalRadius: 2,
+          radius: 0.27, // Réel: 0.27× Terre
+          rotationSpeed: 0.675, // Rotation SYNCHRONE (= orbitSpeed)
+          orbitSpeed: 0.675, // Période: 27 jours (~13 orbites/an terrestre)
+          orbitalRadius: 2.5,
           orbitalColor: 0x999999,
           textureResolutions: {
             surface: ['8k', '4k', '2k', '1k'],
@@ -270,11 +296,12 @@ export const CELESTIAL_CONFIG = {
         },
       },
     },
+
     mars: {
-      radius: 0.6,
-      rotationSpeed: 0.001,
-      orbitSpeed: 0.005,
-      orbitalRadius: 45,
+      radius: 0.53, // Réel: 0.53× Terre
+      rotationSpeed: 0.29, // Période: 24h37 (similaire à Terre)
+      orbitSpeed: 0.0265, // Période: 687 jours (~1.88 ans)
+      orbitalRadius: 50,
       orbitalColor: 0xff4500,
       textureResolutions: {
         surface: ['8k', '4k', '2k', '1k'],
@@ -285,46 +312,50 @@ export const CELESTIAL_CONFIG = {
         normalMap: 'mars/marsNormalMap',
       },
     },
+
     jupiter: {
-      radius: 3.5,
-      rotationSpeed: 0.003,
-      orbitSpeed: 0.001,
-      orbitalRadius: 70,
+      radius: 4, // Réel: 11× Terre (réduit pour l'échelle)
+      rotationSpeed: 0.73, // Période: 9h50 (TRÈS RAPIDE!)
+      orbitSpeed: 0.00415, // Période: 12 ans
+      orbitalRadius: 80,
       orbitalColor: 0xffc04d,
       textureResolutions: { surface: ['4k', '2k', '1k'] },
       textures: { surface: 'jupiter/jupiterSurface' },
     },
+
     saturn: {
-      radius: 3,
-      rotationSpeed: 0.0015,
-      orbitSpeed: 0.0005,
-      orbitalRadius: 90,
+      radius: 3.5, // Réel: 9× Terre (réduit pour l'échelle)
+      rotationSpeed: 0.67, // Période: 10h33 (très rapide)
+      orbitSpeed: 0.0017, // Période: 29 ans
+      orbitalRadius: 100,
       orbitalColor: 0xf5deb3,
       ring: {
         bodyName: 'saturn-ring',
         innerRadius: 1.5,
-        outerRadius: 2,
-        rotationSpeed: 0.00005,
+        outerRadius: 2.2,
+        rotationSpeed: 0.0001,
         textureResolutions: ['8k', '4k', '2k', '1k'],
         textures: 'saturn/saturnRing',
       },
       textureResolutions: { surface: ['4k', '2k', '1k'] },
       textures: { surface: 'saturn/saturnSurface' },
     },
+
     uranus: {
-      radius: 2,
-      rotationSpeed: 0.001,
-      orbitSpeed: 0.0002,
-      orbitalRadius: 110,
+      radius: 2, // Réel: 4× Terre (réduit pour l'échelle)
+      rotationSpeed: 0.42, // Période: 17h (rapide)
+      orbitSpeed: 0.0006, // Période: 84 ans
+      orbitalRadius: 130,
       orbitalColor: 0x7fffd4,
       textureResolutions: { surface: ['2k', '1k'] },
       textures: { surface: 'uranus/uranusSurface' },
     },
+
     neptune: {
-      radius: 1.8,
-      rotationSpeed: 0.0012,
-      orbitSpeed: 0.0001,
-      orbitalRadius: 130,
+      radius: 1.9, // Réel: 3.9× Terre (réduit pour l'échelle)
+      rotationSpeed: 0.45, // Période: 16h (rapide)
+      orbitSpeed: 0.0003, // Période: 165 ans (le plus lent)
+      orbitalRadius: 160,
       orbitalColor: 0x4169e1,
       textureResolutions: { surface: ['2k', '1k'] },
       textures: { surface: 'neptune/neptuneSurface' },
